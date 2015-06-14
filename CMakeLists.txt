@@ -21,4 +21,4 @@ link_directories(${PCL_LIBRARY_DIRS} ${EXTRA_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
 add_executable(${CMAKE_PROJECT_NAME} src/pcl_grabber.cpp)
-target_link_libraries(${CMAKE_PROJECT_NAME} ${PCL_LIBRARIES} ${EXTRA_LIBRARIES})
+target_link_libraries(${CMAKE_PROJECT_NAME} ${PCL_COMMON_LIBRARIES} ${PCL_IO_LIBRARIES} ${PCL_VISUALIZATION_LIBRARIES} ${EXTRA_LIBRARIES})

@@ -57,16 +57,20 @@ public:
 //		((pcl::EnsensoGrabber*)grabber)->openDevice();
 //		pcl::Grabber* grabber = new pcl::Kinect2Grabber();
 //		pcl::Grabber* grabber = pcl::PCDGrabberExt<pcl::PointXYZ>(".\\data\\20150613T212929\\data.tar", 30);
-		pcl::PCDWriterExt<pcl::PointXYZ> writer;
+		pcl::PCDWriterExt writer;
 		
+		boost::function<void(const boost::shared_ptr<pcl::io::DepthImage>&)> f_3 =
+			boost::bind(&pcl::PCDWriterExt::WriteLZFDepthImage, &writer, _1);
+
 		boost::function<void(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr&)> f_1 =
-			boost::bind(&pcl::PCDWriterExt<pcl::PointXYZ>::WritePCDCloud, &writer, _1);
+			boost::bind(&pcl::PCDWriterExt::WritePCDCloud<pcl::PointXYZ>, &writer, _1);
 
 		boost::function<void(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr&)> f_2 =
 			boost::bind(&SimpleOpenNIViewer::image_cb_, this, _1);
 
-		grabber->registerCallback(f_1);
+//		grabber->registerCallback(f_1);
 		grabber->registerCallback(f_2);
+		grabber->registerCallback(f_3);
 
 		grabber->start();
 
