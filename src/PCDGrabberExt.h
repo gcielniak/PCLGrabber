@@ -39,10 +39,4 @@ namespace pcl
 			return new PCDGrabber<PointT>(pcd_path, frames_per_second, repeat);
 		}
 	}
-
-	template <typename PointT>
-	Grabber* PCDGrabberExt(const std::vector<std::string>& pcd_files, float frames_per_second = 0, bool repeat = false)
-	{
-		return new PCDGrabber<PointT>(pcd_files, frames_per_second, repeat);
-	}
 }
