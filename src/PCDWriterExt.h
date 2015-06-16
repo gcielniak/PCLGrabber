@@ -43,6 +43,9 @@ namespace pcl
 			pcl::io::LZFDepth16ImageWriter writer;
 
 			string time_string = boost::posix_time::to_iso_string(boost::posix_time::microsec_clock::universal_time());
+			cerr << "1: " << time_string << endl;
+			cerr << "2: " << depth_image->getSystemTimestamp() << endl;
+			cerr << "3: " << depth_image->getTimestamp() << endl;
 
 			if (!boost::filesystem::exists(boost::filesystem::path(output_data_path)))
 				boost::filesystem::create_directories(boost::filesystem::path(output_data_path));
@@ -51,10 +54,47 @@ namespace pcl
 			std::stringstream xml_file_name;
 			depth_file_name << "frame_" << time_string << "_depth.pclzf";
 			xml_file_name << "frame_" << time_string << ".xml";
+
+			io::CameraParameters parameters_depth;
+			parameters_depth.focal_length_x = parameters_depth.focal_length_y = depth_image->getFocalLength();
+			parameters_depth.principal_point_x = (depth_image->getWidth() - 1.f) / 2.f;
+			parameters_depth.principal_point_y = (depth_image->getHeight() - 1.f) / 2.f;
+
 			writer.write(reinterpret_cast<const char*> (depth_image->getData()), depth_image->getWidth(), depth_image->getHeight(), output_data_path + depth_file_name.str());
 			writer.writeParameters(parameters_depth, output_data_path + xml_file_name.str());
 		}
 
-		io::CameraParameters parameters_depth;
+		void WriteLZFFormat(const boost::shared_ptr<pcl::io::DepthImage>& depth_image, const boost::shared_ptr<pcl::io::Image>& color_image)
+		{
+			pcl::io::LZFDepth16ImageWriter depth_writer;
+			pcl::io::LZFRGB24ImageWriter color_writer;
+
+			string time_string = boost::posix_time::to_iso_string(boost::posix_time::microsec_clock::universal_time());
+			cerr << "--- " << time_string << endl;
+			cerr << "T : " << time_string << endl;
+			cerr << "D1: " << depth_image->getSystemTimestamp() << endl;
+			cerr << "C1: " << color_image->getSystemTimestamp() << endl;
+			cerr << "D2: " << depth_image->getTimestamp() << endl;
+			cerr << "C2: " << color_image->getTimestamp() << endl;
+
+			if (!boost::filesystem::exists(boost::filesystem::path(output_data_path)))
+				boost::filesystem::create_directories(boost::filesystem::path(output_data_path));
+
+			std::stringstream depth_file_name;
+			std::stringstream color_file_name;
+			std::stringstream xml_file_name;
+			depth_file_name << "frame_" << time_string << "_depth.pclzf";
+			color_file_name << "frame_" << time_string << "_rgb.pclzf";
+			xml_file_name << "frame_" << time_string << ".xml";
+
+			io::CameraParameters depth_parameters;
+			depth_parameters.focal_length_x = depth_parameters.focal_length_y = depth_image->getFocalLength();
+			depth_parameters.principal_point_x = (depth_image->getWidth() - 1.f) / 2.f;
+			depth_parameters.principal_point_y = (depth_image->getHeight() - 1.f) / 2.f;
+			depth_writer.writeParameters(depth_parameters, output_data_path + xml_file_name.str());
+
+			depth_writer.write(reinterpret_cast<const char*> (depth_image->getData()), depth_image->getWidth(), depth_image->getHeight(), output_data_path + depth_file_name.str());
+			color_writer.write(reinterpret_cast<const char*> (color_image->getData()), color_image->getWidth(), color_image->getHeight(), output_data_path + color_file_name.str());
+		}
 	};
 }
