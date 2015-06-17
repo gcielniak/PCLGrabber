@@ -3,6 +3,7 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/io/lzf_image_io.h>
 #include <pcl/io/image_depth.h>
+#include <pcl/io/image.h>
 
 using namespace std;
 

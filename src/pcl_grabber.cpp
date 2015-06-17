@@ -88,6 +88,10 @@ public:
 //		pcl::Grabber* grabber = new pcl::Kinect2Grabber();
 //		pcl::Grabber* grabber = pcl::PCDGrabberExt<pcl::PointXYZ>(".\\data\\20150613T212929\\data.tar", 30);
 
+		pcl::DeviceInput device_input;
+
+		device_input.ListAllDevices();
+
 
 		pcl::Grabber* grabber = new pcl::ImageGrabber<pcl::PointXYZRGBA>(".\\data\\20150616T143947\\", 30, false, true);
 		

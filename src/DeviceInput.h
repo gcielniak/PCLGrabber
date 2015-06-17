@@ -37,13 +37,13 @@ namespace pcl
 		DeviceInput() : grabber(0)
 		{
 #ifdef HAVE_OPENNI2
-			supported_platforms.push_back(PlatformType::OPENNI2_DEVICE);
+			supported_platforms.push_back(OPENNI2_DEVICE);
 #endif
 #ifdef HAVE_OPENNI
-			supported_platforms.push_back(PlatformType::OPENNI_DEVICE);
+			supported_platforms.push_back(OPENNI_DEVICE);
 #endif
 #ifdef HAVE_ENSENSO
-			supported_platforms.push_back(PlatformType::ENSENSO_DEVICE);
+			supported_platforms.push_back(ENSENSO_DEVICE);
 #endif
 		}
 
@@ -51,8 +51,10 @@ namespace pcl
 		{
 			if (grabber)
 			{
-				if (platform_type == PlatformType::ENSENSO_DEVICE)
+				#ifdef HAVE_ENSENSO
+				if (platform_type == ENSENSO_DEVICE)
 					((EnsensoGrabber*)grabber)->closeDevice();
+				#endif
 
 				delete grabber;
 			}
@@ -119,7 +121,7 @@ namespace pcl
 				throw new pcl::PCLException("DeviceInput::GetGrabber, wrong platform number.");
 
 #ifdef HAVE_OPENNI2
-			if (!grabber && (supported_platforms[platform] == PlatformType::OPENNI2_DEVICE))
+			if (!grabber && (supported_platforms[platform] == OPENNI2_DEVICE))
 			{
 				io::openni2::OpenNI2DeviceManager device_manager;
 				size_t nr_of_devices = device_manager.getNumOfConnectedDevices();
@@ -128,10 +130,11 @@ namespace pcl
 				ostringstream device_str;
 				device_str << device;
 				grabber = new io::OpenNI2Grabber(device_str.str());
+			}
 #endif
 
 #ifdef HAVE_OPENNI
-				if (!grabber && (supported_platforms[platform] == PlatformType::OPENNI_DEVICE))
+				if (!grabber && (supported_platforms[platform] == OPENNI_DEVICE))
 				{
 					openni_wrapper::OpenNIDriver& device_manager = openni_wrapper::OpenNIDriver::getInstance();
 					unsigned int nr_of_devices = device_manager.getNumberDevices();
@@ -145,7 +148,7 @@ namespace pcl
 #endif
 
 #ifdef HAVE_ENSENSO
-				if (!grabber && (supported_platforms[platform] == PlatformType::ENSENSO_DEVICE))
+				if (!grabber && (supported_platforms[platform] == ENSENSO_DEVICE))
 				{
 					grabber = new EnsensoGrabber();
 					((EnsensoGrabber*)grabber)->openTcpPort();
@@ -158,6 +161,6 @@ namespace pcl
 				platform_type = supported_platforms[platform];
 				return grabber;
 			}
-		}
+	
 	};
 }
