@@ -1,17 +1,12 @@
-#include <pcl/io/openni2_grabber.h>
-#include "MyOpenNIGrabber.h"
-#include "DeviceInput.h"
-#include <pcl/io/openni_grabber.h>
 #include <pcl/io/image_grabber.h>
-#include "PCDGrabberExt.h"
-#include "PCDWriterExt.h"
-//#include <pcl/io/ensenso_grabber.h>
-//#include "kinect2_grabber.h"
 #include <pcl/visualization/image_viewer.h>
 #include <pcl/visualization/cloud_viewer.h>
-
 #include <pcl/common/time.h> //fps calculations
 #include <pcl/io/lzf_image_io.h>
+
+#include "DeviceInput.h"
+#include "PCDGrabberExt.h"
+#include "PCDWriterExt.h"
 
 #define SHOW_FPS 1
 #if SHOW_FPS
