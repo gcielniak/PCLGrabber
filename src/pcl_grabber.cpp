@@ -80,20 +80,11 @@ public:
 
 	void run()
 	{
-		//		pcl::Grabber* grabber = new pcl::OpenNIGrabber();
-//		pcl::Grabber* grabber = new pcl::io::OpenNI2Grabber();
-//		pcl::Grabber* grabber = new pcl::EnsensoGrabber();
-//  		((pcl::EnsensoGrabber*)grabber)->openTcpPort();
-//		((pcl::EnsensoGrabber*)grabber)->openDevice();
-//		pcl::Grabber* grabber = new pcl::Kinect2Grabber();
-//		pcl::Grabber* grabber = pcl::PCDGrabberExt<pcl::PointXYZ>(".\\data\\20150613T212929\\data.tar", 30);
-
 		pcl::DeviceInput device_input;
-
 		device_input.ListAllDevices();
+		Grabber* grabber = device_input.GetGrabber();
 
-
-		pcl::Grabber* grabber = new pcl::ImageGrabber<pcl::PointXYZRGBA>(".\\data\\20150616T143947\\", 30, false, true);
+//		Grabber* grabber = new pcl::ImageGrabber<pcl::PointXYZRGBA>(".\\data\\20150616T143947\\", 30, false, true);
 		
 //		boost::function<void(const boost::shared_ptr<pcl::io::DepthImage>&)> f_3 =
 //			boost::bind(&pcl::PCDWriterExt::WriteLZFDepthImage, &writer, _1);
@@ -103,6 +94,7 @@ public:
 
 		boost::function<void(const pcl::PointCloud<pcl::PointXYZRGBA>::ConstPtr&)> f_2 =
 			boost::bind(&SimpleOpenNIViewer::cloud_cb_, this, _1);
+		grabber->registerCallback(f_2);
 
 		/*
 		boost::function<void(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, float flength)> f_4 =
@@ -118,35 +110,12 @@ public:
 			boost::bind(&SimpleOpenNIViewer::d_image_cb_, this, _1);
 			*/
 
-		pcl::DeviceInput input;
-		input.ListAllDevices();
-
-		grabber->registerCallback(f_2);
 		//		grabber->registerCallback(f_6);
 //		grabber->registerCallback(f_5);
 
 		grabber->start();
-		/*
-		boost::shared_ptr<pcl::io::openni2::OpenNI2Device> device = ((pcl::io::OpenNI2Grabber*)grabber)->getDevice();
 
-		cerr << "- - -" << endl;
-		cerr << device->isSynchronizationSupported() << endl;
-		cerr << device->isSynchronized() << endl;
-		cerr << device->isDepthRegistered() << endl;
-//		device->setImageRegistrationMode(false);
-		cerr << "- - -" << endl;
-		*/
-
-		/*
-		boost::shared_ptr<pcl::io::DepthImage> image2;
-		boost::shared_ptr<pcl::PointCloud<pcl::PointXYZRGBA>> cloud(new pcl::PointCloud<pcl::PointXYZRGBA>());
-
-		pcl::io::LZFDepth16ImageReader reader;
-		reader.readParameters(".\\data\\20150616T095315\\frame_20150616T085316.285455.xml");
-		reader.read(".\\data\\20150616T095315\\frame_20150616T085316.285455_depth.pclzf", *cloud);
-		viewer.showCloud(cloud);
-		*/
-		while (!depth_viewer.wasStopped() && !color_viewer.wasStopped())
+		while (!depth_viewer.wasStopped() && !color_viewer.wasStopped() && !cloud_viewer.wasStopped())
 		{
 			boost::shared_ptr<pcl::io::DepthImage> depth_image;
 			boost::shared_ptr<pcl::io::Image> color_image;
@@ -170,19 +139,16 @@ public:
 			*/
 			if (depth_image){
 				depth_viewer.showShortImage(depth_image->getData(), depth_image->getWidth(), depth_image->getHeight());
+				depth_viewer.spinOnce();
 			}
 
 			if (color_image){
 				color_viewer.showRGBImage((unsigned char*)color_image->getData(), color_image->getWidth(), color_image->getHeight());
+				color_viewer.spinOnce();
 			}
-
-			depth_viewer.spinOnce();
-			color_viewer.spinOnce();
 		}
 
 		grabber->stop();
-
-//		((pcl::EnsensoGrabber*)grabber)->closeDevice();
 	}
 
 	pcl::visualization::CloudViewer cloud_viewer;

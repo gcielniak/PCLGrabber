@@ -19,11 +19,11 @@ namespace pcl
 {
 	enum PlatformType
 	{
-		OPENNI2_DEVICE,
-		OPENNI_DEVICE,
-		ENSENSO_DEVICE,
-		KINECT2NATIVE_DEVICE,
-		NO_DEVICE
+		OPENNI2_PLATFORM,
+		OPENNI_PLATFORM,
+		ENSENSO_PLATFORM,
+		KINECT2NATIVE_PLATFORM,
+		NO_PLATFORM
 	};
 
 	class DeviceInput
@@ -37,13 +37,13 @@ namespace pcl
 		DeviceInput() : grabber(0)
 		{
 #ifdef HAVE_OPENNI2
-			supported_platforms.push_back(OPENNI2_DEVICE);
+			supported_platforms.push_back(OPENNI2_PLATFORM);
 #endif
 #ifdef HAVE_OPENNI
-			supported_platforms.push_back(OPENNI_DEVICE);
+			supported_platforms.push_back(OPENNI_PLATFORM);
 #endif
 #ifdef HAVE_ENSENSO
-			supported_platforms.push_back(ENSENSO_DEVICE);
+			supported_platforms.push_back(ENSENSO_PLATFORM);
 #endif
 		}
 
@@ -51,10 +51,11 @@ namespace pcl
 		{
 			if (grabber)
 			{
-				#ifdef HAVE_ENSENSO
-				if (platform_type == ENSENSO_DEVICE)
+
+#ifdef HAVE_ENSENSO
+				if (platform_type == ENSENSO_PLATFORM)
 					((EnsensoGrabber*)grabber)->closeDevice();
-				#endif
+#endif
 
 				delete grabber;
 			}
@@ -62,57 +63,60 @@ namespace pcl
 
 		void ListAllDevices()
 		{
-#ifdef HAVE_OPENNI2
-			//OpenNI2
+			for (unsigned int i = 0; i < supported_platforms.size(); i++)
 			{
-				io::openni2::OpenNI2DeviceManager device_manager;
 
-				size_t nr_of_devices = device_manager.getNumOfConnectedDevices();
-
-				cerr << "- OpenNI2 devices -" << endl;
-
-				for (size_t i = 0; i < nr_of_devices; i++)
+#ifdef HAVE_OPENNI2
+				if (supported_platforms[i] == OPENNI2_PLATFORM)
 				{
-					cerr << " Device " << i << ": ";
-					cerr << device_manager.getDeviceByIndex(i)->getStringID() << endl;
+					io::openni2::OpenNI2DeviceManager device_manager;
+					size_t nr_of_devices = device_manager.getNumOfConnectedDevices();
+
+					cerr << "Platform " << i << ": OpenNI2" << endl;
+
+					for (size_t i = 0; i < nr_of_devices; i++)
+					{
+						cerr << " Device " << i << ": ";
+						cerr << device_manager.getDeviceByIndex(i)->getStringID() << endl;
+					}
 				}
-			}
 #endif
 
 #ifdef HAVE_OPENNI
-			//OpenNI
-			{
-				openni_wrapper::OpenNIDriver& device_manager = openni_wrapper::OpenNIDriver::getInstance();
-
-				unsigned int nr_of_devices = device_manager.getNumberDevices();
-
-				cerr << "- OpenNI devices -" << endl;
-
-				for (unsigned int i = 0; i < nr_of_devices; i++)
+				if (supported_platforms[i] == OPENNI_PLATFORM)
 				{
-					cerr << " Device " << i << ": ";
-					cerr << device_manager.getProductName(i) << endl;
+					openni_wrapper::OpenNIDriver& device_manager = openni_wrapper::OpenNIDriver::getInstance();
+
+					unsigned int nr_of_devices = device_manager.getNumberDevices();
+
+					cerr << "Platform " << i << ": OpenNI" << endl;
+
+					for (unsigned int i = 0; i < nr_of_devices; i++)
+					{
+						cerr << " Device " << i << ": ";
+						cerr << device_manager.getProductName(i) << endl;
+					}
 				}
-			}
 #endif
 
 #ifdef HAVE_ENSENSO
-			//Ensenso SDK
-			{
-				pcl::EnsensoGrabber device_manager;
-
-				int nr_of_devices = device_manager.enumDevices();
-
-				cerr << "- Ensenso devices -" << endl;
-
-				for (int i = 0; i < nr_of_devices; i++)
+				if (supported_platforms[i] == OPENNI_ENSENSO)
 				{
+					pcl::EnsensoGrabber device_manager;
+
+					int nr_of_devices = device_manager.enumDevices();
+
+					cerr << "Platform " << i << ": Ensenso" << endl;
+
+					for (int i = 0; i < nr_of_devices; i++)
+					{
+					}
 				}
-			}
 #endif
+			}
 		}
 
-		const Grabber* GetGrabber(int platform = 0, int device = 0)
+		Grabber* GetGrabber(int platform = 0, int device = 0)
 		{
 			if (grabber)
 				throw new pcl::PCLException("DeviceInput::GetGrabber, deviced already initalised.");
@@ -121,7 +125,7 @@ namespace pcl
 				throw new pcl::PCLException("DeviceInput::GetGrabber, wrong platform number.");
 
 #ifdef HAVE_OPENNI2
-			if (!grabber && (supported_platforms[platform] == OPENNI2_DEVICE))
+			if (!grabber && (supported_platforms[platform] == OPENNI2_PLATFORM))
 			{
 				io::openni2::OpenNI2DeviceManager device_manager;
 				size_t nr_of_devices = device_manager.getNumOfConnectedDevices();
@@ -134,33 +138,33 @@ namespace pcl
 #endif
 
 #ifdef HAVE_OPENNI
-				if (!grabber && (supported_platforms[platform] == OPENNI_DEVICE))
-				{
-					openni_wrapper::OpenNIDriver& device_manager = openni_wrapper::OpenNIDriver::getInstance();
-					unsigned int nr_of_devices = device_manager.getNumberDevices();
+			if (!grabber && (supported_platforms[platform] == OPENNI_PLATFORM))
+			{
+				openni_wrapper::OpenNIDriver& device_manager = openni_wrapper::OpenNIDriver::getInstance();
+				unsigned int nr_of_devices = device_manager.getNumberDevices();
 
-					if (device > nr_of_devices)
-						throw new pcl::PCLException("DeviceInput::GetGrabber, wrong device number.");
-					ostringstream device_str;
-					device_str << device;
-					grabber = new OpenNIGrabber(device_str.str());
-				}
+				if (device > nr_of_devices)
+					throw new pcl::PCLException("DeviceInput::GetGrabber, wrong device number.");
+				ostringstream device_str;
+				device_str << device;
+				grabber = new OpenNIGrabber(device_str.str());
+			}
 #endif
 
 #ifdef HAVE_ENSENSO
-				if (!grabber && (supported_platforms[platform] == ENSENSO_DEVICE))
-				{
-					grabber = new EnsensoGrabber();
-					((EnsensoGrabber*)grabber)->openTcpPort();
-					((EnsensoGrabber*)grabber)->openDevice(device);
-				}
-#endif
-				if (!grabber)
-					throw new pcl::PCLException("DeviceInput::GetGrabber, could not initalise the specified device.");
-
-				platform_type = supported_platforms[platform];
-				return grabber;
+			if (!grabber && (supported_platforms[platform] == ENSENSO_PLATFORM))
+			{
+				grabber = new EnsensoGrabber();
+				((EnsensoGrabber*)grabber)->openTcpPort();
+				((EnsensoGrabber*)grabber)->openDevice(device);
 			}
-	
+#endif
+			if (!grabber)
+				throw new pcl::PCLException("DeviceInput::GetGrabber, could not initalise the specified device.");
+
+			platform_type = supported_platforms[platform];
+			return grabber;
+		}
+
 	};
 }
