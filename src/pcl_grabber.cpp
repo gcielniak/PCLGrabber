@@ -75,12 +75,14 @@ public:
 	void run()
 	{
 		DeviceInput device_input;
+		FileInput file_input;
 		Grabber* grabber;
 		FileOutput writer;
 		
 		try
 		{
-			grabber = device_input.GetGrabber(platform, device);
+//			grabber = device_input.GetGrabber(platform, device);
+			grabber = file_input.GetGrabber(".\\data\\20150618T204321\\", 10);
 		}
 		catch (pcl::PCLException exc)
 		{
@@ -102,7 +104,7 @@ public:
 
 		grabber->registerCallback(f_cloud);
 //		grabber->registerCallback(f_cloud_write);
-		grabber->registerCallback(f_image_write);
+//		grabber->registerCallback(f_image_write);
 		//		grabber->registerCallback(f_cdimage);
 
 		grabber->start();
