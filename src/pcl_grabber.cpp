@@ -35,12 +35,14 @@ using namespace pcl;
 
 class SimpleOpenNIViewer
 {
+	typedef PointXYZRGBA CloudType;
+	int platform, device;
+
 public:
 
-	SimpleOpenNIViewer() : cloud_viewer("PCL Grabber") {}
-//	SimpleOpenNIViewer() {}
+	SimpleOpenNIViewer(int _platform=0, int _device=0) : cloud_viewer("PCL Grabber"), platform(_platform), device(_device) {}
 
-	void cloud_cb_(const pcl::PointCloud<pcl::PointXYZRGBA>::ConstPtr& cloud)
+	void cloud_cb_(const pcl::PointCloud<CloudType>::ConstPtr& cloud)
 	{
 		if (!cloud_viewer.wasStopped())
 			cloud_viewer.showCloud(cloud);
@@ -81,37 +83,26 @@ public:
 	void run()
 	{
 		pcl::DeviceInput device_input;
-		device_input.ListAllDevices();
-		Grabber* grabber = device_input.GetGrabber();
-
-//		Grabber* grabber = new pcl::ImageGrabber<pcl::PointXYZRGBA>(".\\data\\20150616T143947\\", 30, false, true);
+		Grabber* grabber;
 		
-//		boost::function<void(const boost::shared_ptr<pcl::io::DepthImage>&)> f_3 =
-//			boost::bind(&pcl::PCDWriterExt::WriteLZFDepthImage, &writer, _1);
+		try
+		{
+			grabber = device_input.GetGrabber(platform, device);
+		}
+		catch (pcl::PCLException exc)
+		{
+			cerr << exc.detailedMessage() << endl;
+			return;
+		}
 
-//		boost::function<void(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr&)> f_1 =
-//			boost::bind(&pcl::PCDWriterExt::WritePCDCloud<pcl::PointXYZ>, &writer, _1);
-
-		boost::function<void(const pcl::PointCloud<pcl::PointXYZRGBA>::ConstPtr&)> f_2 =
+		boost::function<void(const pcl::PointCloud<CloudType>::ConstPtr&)> f_cloud =
 			boost::bind(&SimpleOpenNIViewer::cloud_cb_, this, _1);
-		grabber->registerCallback(f_2);
 
-		/*
-		boost::function<void(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, float flength)> f_4 =
+		boost::function<void(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, float flength)> f_cdimage =
 			boost::bind(&SimpleOpenNIViewer::cd_images_cb_, this, _1, _2, _3);
 
-		boost::function<void(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, float flength)> f_8 =
-			boost::bind(&SimpleOpenNIViewer::save_images_cb_, this, _1, _2, _3);
-
-		boost::function<void(const boost::shared_ptr<io::Image>&)> f_5 =
-			boost::bind(&SimpleOpenNIViewer::c_image_cb_, this, _1);
-
-		boost::function<void(const boost::shared_ptr<io::DepthImage>&)> f_6 =
-			boost::bind(&SimpleOpenNIViewer::d_image_cb_, this, _1);
-			*/
-
-		//		grabber->registerCallback(f_6);
-//		grabber->registerCallback(f_5);
+		grabber->registerCallback(f_cloud);
+		grabber->registerCallback(f_cdimage);
 
 		grabber->start();
 
@@ -125,18 +116,19 @@ public:
 				color_image_.swap(color_image);
 				cd_mutex.unlock();
 			}
-			/*
-			if (depth_mutex.try_lock()){
+			else
+			{
+				if (depth_mutex.try_lock()){
 				depth_image_.swap(depth_image);
 				depth_mutex.unlock();
-			}
+				}
 
-			if (color_mutex.try_lock()){
+				if (color_mutex.try_lock()){
 				color_image_.swap(color_image);
 				color_mutex.unlock();
+				}
 			}
 
-			*/
 			if (depth_image){
 				depth_viewer.showShortImage(depth_image->getData(), depth_image->getWidth(), depth_image->getHeight());
 				depth_viewer.spinOnce();
@@ -159,9 +151,41 @@ public:
 	pcl::PCDWriterExt writer; 
 };
 
-int main()
+void print_help()
 {
-	SimpleOpenNIViewer v;
+	cerr << "PCLGrabber usage:" << endl;
+
+	cerr << " -l : list all available input platforms and devices" << endl;
+	cerr << " -p : specify the input platform" << endl;
+	cerr << " -d : specify the input device" << endl;
+	cerr << " -h : print this message" << endl;
+}
+
+int main(int argc, char **argv)
+{
+	if (argc == 1)
+	{
+		print_help();
+		exit(0);
+	}
+
+	int platform = 0;
+	int device = 0;
+
+	for (int i = 1; i < argc; i++)
+	{
+		if (strcmp(argv[i], "-l") == 0)
+		{
+			DeviceInput device_input;
+			device_input.ListAllDevices();
+			return 0;
+		}
+		else if ((strcmp(argv[i], "-p") == 0) && (i < (argc - 1))) { platform = atoi(argv[++i]); }
+		else if ((strcmp(argv[i], "-d") == 0) && (i < (argc - 1))) { device = atoi(argv[++i]); }
+		else if (strcmp(argv[i], "-h") == 0)	{ print_help(); }
+	}
+
+	SimpleOpenNIViewer v(platform, device);
 	v.run();
 	return 0;
 }

@@ -69,15 +69,15 @@ namespace pcl
 #ifdef HAVE_OPENNI2
 				if (supported_platforms[i] == OPENNI2_PLATFORM)
 				{
+					cerr << "Platform " << i << ": OpenNI2" << endl;
+
 					io::openni2::OpenNI2DeviceManager device_manager;
 					size_t nr_of_devices = device_manager.getNumOfConnectedDevices();
 
-					cerr << "Platform " << i << ": OpenNI2" << endl;
-
-					for (size_t i = 0; i < nr_of_devices; i++)
+					for (size_t j = 0; j < nr_of_devices; j++)
 					{
-						cerr << " Device " << i << ": ";
-						cerr << device_manager.getDeviceByIndex(i)->getStringID() << endl;
+						cerr << " Device " << j << ": ";
+						cerr << device_manager.getDeviceByIndex(j)->getStringID() << endl;
 					}
 				}
 #endif
@@ -85,30 +85,30 @@ namespace pcl
 #ifdef HAVE_OPENNI
 				if (supported_platforms[i] == OPENNI_PLATFORM)
 				{
+					cerr << "Platform " << i << ": OpenNI" << endl;
+
 					openni_wrapper::OpenNIDriver& device_manager = openni_wrapper::OpenNIDriver::getInstance();
 
 					unsigned int nr_of_devices = device_manager.getNumberDevices();
 
-					cerr << "Platform " << i << ": OpenNI" << endl;
-
-					for (unsigned int i = 0; i < nr_of_devices; i++)
+					for (unsigned int j = 0; j < nr_of_devices; j++)
 					{
-						cerr << " Device " << i << ": ";
-						cerr << device_manager.getProductName(i) << endl;
+						cerr << " Device " << j << ": ";
+						cerr << device_manager.getProductName(j) << endl;
 					}
 				}
 #endif
 
 #ifdef HAVE_ENSENSO
-				if (supported_platforms[i] == OPENNI_ENSENSO)
+				if (supported_platforms[i] == ENSENSO_PLATFORM)
 				{
+					cerr << "Platform " << i << ": Ensenso" << endl;
+
 					pcl::EnsensoGrabber device_manager;
 
 					int nr_of_devices = device_manager.enumDevices();
 
-					cerr << "Platform " << i << ": Ensenso" << endl;
-
-					for (int i = 0; i < nr_of_devices; i++)
+					for (int j = 0; j < nr_of_devices; j++)
 					{
 					}
 				}
