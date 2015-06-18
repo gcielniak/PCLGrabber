@@ -1,12 +1,9 @@
-#include <pcl/io/image_grabber.h>
 #include <pcl/visualization/image_viewer.h>
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl/common/time.h> //fps calculations
-#include <pcl/io/lzf_image_io.h>
-
 #include "DeviceInput.h"
-#include "PCDGrabberExt.h"
-#include "PCDWriterExt.h"
+#include "FileInput.h"
+#include "FileOutput.h"
 
 #define SHOW_FPS 1
 #if SHOW_FPS
@@ -59,11 +56,6 @@ public:
 		FPS_CALC("Both:: ");
 	}
 
-	void save_images_cb_(const boost::shared_ptr<io::Image>& color_image, const boost::shared_ptr<io::DepthImage>& depth_image, float flength)
-	{
-		writer.WriteLZFFormat(depth_image, color_image);
-	}
-
 	void d_image_cb_(const boost::shared_ptr<io::DepthImage>& depth_image)
 	{
 		boost::mutex::scoped_lock lock(depth_mutex);
@@ -82,8 +74,9 @@ public:
 
 	void run()
 	{
-		pcl::DeviceInput device_input;
+		DeviceInput device_input;
 		Grabber* grabber;
+		FileOutput writer;
 		
 		try
 		{
@@ -98,11 +91,19 @@ public:
 		boost::function<void(const pcl::PointCloud<CloudType>::ConstPtr&)> f_cloud =
 			boost::bind(&SimpleOpenNIViewer::cloud_cb_, this, _1);
 
+		boost::function<void(const pcl::PointCloud<CloudType>::ConstPtr&)> f_cloud_write =
+			boost::bind(&FileOutput::WriteCloudPCD<CloudType>, &writer, _1);
+
+		boost::function<void(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, float flength)> f_image_write =
+			boost::bind(&FileOutput::WriteImageLZF, &writer, _1, _2);
+
 		boost::function<void(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, float flength)> f_cdimage =
 			boost::bind(&SimpleOpenNIViewer::cd_images_cb_, this, _1, _2, _3);
 
 		grabber->registerCallback(f_cloud);
-		grabber->registerCallback(f_cdimage);
+//		grabber->registerCallback(f_cloud_write);
+		grabber->registerCallback(f_image_write);
+		//		grabber->registerCallback(f_cdimage);
 
 		grabber->start();
 
@@ -148,7 +149,6 @@ public:
 	boost::mutex cd_mutex, depth_mutex, color_mutex;
 	boost::shared_ptr<pcl::io::DepthImage> depth_image_;
 	boost::shared_ptr<pcl::io::Image> color_image_;
-	pcl::PCDWriterExt writer; 
 };
 
 void print_help()
