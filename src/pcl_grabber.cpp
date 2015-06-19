@@ -15,11 +15,11 @@ do \
     double now = pcl::getTime (); \
     ++count; \
     if (now - last >= 1.0) \
-	    { \
+			    { \
       std::cout << "Average framerate("<< _WHAT_ << "): " << double(count)/double(now - last) << " Hz" <<  std::endl; \
       count = 0; \
       last = now; \
-	    } \
+			    } \
 }while(false)
 #else
 #define FPS_CALC(_WHAT_) \
@@ -30,59 +30,51 @@ do \
 
 using namespace pcl;
 
-class SimpleOpenNIViewer
+class SimpleViewer
 {
 	typedef PointXYZRGBA CloudType;
-	int platform, device;
+	int platform, device, file_format;
+	bool vis_cloud, vis_images;
+	Grabber* grabber;
+	DeviceInput device_input;
+	FileOutput file_output;
+	visualization::CloudViewer *cloud_viewer;
+	visualization::ImageViewer *depth_viewer, *color_viewer;
+	boost::mutex cloud_mutex, image_mutex;
+	boost::shared_ptr<io::DepthImage> depth_image_;
+	boost::shared_ptr<io::Image> color_image_;
+	PointCloud<CloudType>::ConstPtr cloud_;
 
 public:
 
-	SimpleOpenNIViewer(int _platform=0, int _device=0) : cloud_viewer("PCL Grabber"), platform(_platform), device(_device) {}
+	SimpleViewer() : platform(0), device(0), grabber(0), file_format(-1),
+		vis_cloud(false), vis_images(false),
+		cloud_viewer(0), depth_viewer(0), color_viewer(0) {}
 
-	void cloud_cb_(const pcl::PointCloud<CloudType>::ConstPtr& cloud)
+	void Platform(int _platform) { platform = _platform; }
+	void Device(int _device) { device = _device; }
+	void VisualiseCloudPoint(bool _vis_cloud) { vis_cloud = _vis_cloud; }
+	void VisualiseImages(bool _vis_images) { vis_images = _vis_images; }
+	void WriteFiles(int _file_format) { file_format = _file_format; }
+
+	void cloud_cb_(const PointCloud<CloudType>::ConstPtr& cloud)
 	{
-		if (!cloud_viewer.wasStopped())
-			cloud_viewer.showCloud(cloud);
-
-		FPS_CALC("Cloud:: ");
+		boost::mutex::scoped_lock lock(cloud_mutex);
+		cloud_ = cloud;
 	}
 
-	void cd_images_cb_(const boost::shared_ptr<io::Image>& color_image, const boost::shared_ptr<io::DepthImage>& depth_image, float flength)
+	void image_cb_(const boost::shared_ptr<io::Image>& color_image, const boost::shared_ptr<io::DepthImage>& depth_image)
 	{
-		boost::mutex::scoped_lock lock(cd_mutex);
+		boost::mutex::scoped_lock lock(image_mutex);
 		depth_image_ = depth_image;
 		color_image_ = color_image;
-
-		FPS_CALC("Both:: ");
-	}
-
-	void d_image_cb_(const boost::shared_ptr<io::DepthImage>& depth_image)
-	{
-		boost::mutex::scoped_lock lock(depth_mutex);
-		depth_image_ = depth_image;
-
-		FPS_CALC("Depth:: ");
-	}
-
-	void c_image_cb_(const boost::shared_ptr<io::Image>& color_image)
-	{
-		boost::mutex::scoped_lock lock(color_mutex);
-		color_image_ = color_image;
-
-		FPS_CALC("Color:: ");
 	}
 
 	void run()
 	{
-		DeviceInput device_input;
-		FileInput file_input;
-		Grabber* grabber;
-		FileOutput writer;
-		
 		try
 		{
-//			grabber = device_input.GetGrabber(platform, device);
-			grabber = file_input.GetGrabber(".\\data\\20150618T204321\\", 10);
+			grabber = device_input.GetGrabber(platform, device);
 		}
 		catch (pcl::PCLException exc)
 		{
@@ -90,77 +82,98 @@ public:
 			return;
 		}
 
-		boost::function<void(const pcl::PointCloud<CloudType>::ConstPtr&)> f_cloud =
-			boost::bind(&SimpleOpenNIViewer::cloud_cb_, this, _1);
+		if (vis_cloud)
+		{
+			cloud_viewer = new visualization::CloudViewer("PCLGrabber: point cloud");
+			boost::function<void(const PointCloud<CloudType>::ConstPtr&)> f_viscloud =
+				boost::bind(&SimpleViewer::cloud_cb_, this, _1);
+			grabber->registerCallback(f_viscloud);
+		}
 
-		boost::function<void(const pcl::PointCloud<CloudType>::ConstPtr&)> f_cloud_write =
-			boost::bind(&FileOutput::WriteCloudPCD<CloudType>, &writer, _1);
+		if (vis_images)
+		{
+			color_viewer = new visualization::ImageViewer("PCLGrabber: color image");
+			depth_viewer = new visualization::ImageViewer("PCLGrabber: depth image");
+			boost::function<void(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, float flength)> f_image =
+				boost::bind(&SimpleViewer::image_cb_, this, _1, _2);
+			grabber->registerCallback(f_image);
+		}
 
-		boost::function<void(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, float flength)> f_image_write =
-			boost::bind(&FileOutput::WriteImageLZF, &writer, _1, _2);
+		if (file_format != -1)
+		{
+			switch (file_format)
+			{
+			case 0:
+			{
+				boost::function<void(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, float flength)> f_write =
+					boost::bind(&FileOutput::WriteImageLZF, file_output, _1, _2);
+				grabber->registerCallback(f_write);
+			}
+				break;
+			case 1:
+			{
+				boost::function<void(const pcl::PointCloud<CloudType>::ConstPtr&)> f_write =
+					boost::bind(&FileOutput::WriteCloudPCD<CloudType>, &file_output, _1);
+				grabber->registerCallback(f_write);
+			}
+				break;
+			default:
+				break;
+			}
 
-		boost::function<void(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, float flength)> f_cdimage =
-			boost::bind(&SimpleOpenNIViewer::cd_images_cb_, this, _1, _2, _3);
-
-		grabber->registerCallback(f_cloud);
-//		grabber->registerCallback(f_cloud_write);
-//		grabber->registerCallback(f_image_write);
-		//		grabber->registerCallback(f_cdimage);
+		}
 
 		grabber->start();
 
-		while (!depth_viewer.wasStopped() && !color_viewer.wasStopped() && !cloud_viewer.wasStopped())
+		while (!((cloud_viewer && cloud_viewer->wasStopped()) || (depth_viewer && depth_viewer->wasStopped()) || (color_viewer && color_viewer->wasStopped())))
 		{
-			boost::shared_ptr<pcl::io::DepthImage> depth_image;
-			boost::shared_ptr<pcl::io::Image> color_image;
+			boost::shared_ptr<io::Image> color_image;
+			boost::shared_ptr<io::DepthImage> depth_image;
+			PointCloud<CloudType>::ConstPtr cloud;
 
-			if (cd_mutex.try_lock()){
+			if (cloud_mutex.try_lock()){
+				cloud_.swap(cloud);
+				cloud_mutex.unlock();
+			}
+
+			if (image_mutex.try_lock()){
 				depth_image_.swap(depth_image);
 				color_image_.swap(color_image);
-				cd_mutex.unlock();
-			}
-			else
-			{
-				if (depth_mutex.try_lock()){
-				depth_image_.swap(depth_image);
-				depth_mutex.unlock();
-				}
-
-				if (color_mutex.try_lock()){
-				color_image_.swap(color_image);
-				color_mutex.unlock();
-				}
+				image_mutex.unlock();
 			}
 
-			if (depth_image){
-				depth_viewer.showShortImage(depth_image->getData(), depth_image->getWidth(), depth_image->getHeight());
-				depth_viewer.spinOnce();
+			if (cloud_viewer && cloud) {
+				cloud_viewer->showCloud(cloud);
 			}
-
-			if (color_image){
-				color_viewer.showRGBImage((unsigned char*)color_image->getData(), color_image->getWidth(), color_image->getHeight());
-				color_viewer.spinOnce();
+			
+			if (depth_viewer && depth_image) {
+				depth_viewer->showShortImage(depth_image->getData(), depth_image->getWidth(), depth_image->getHeight());
+				depth_viewer->spinOnce();
+			}
+			
+			if (color_viewer && color_image){
+				color_viewer->showRGBImage((unsigned char*)color_image->getData(), color_image->getWidth(), color_image->getHeight());
+				color_viewer->spinOnce();
 			}
 		}
 
 		grabber->stop();
 	}
-
-	pcl::visualization::CloudViewer cloud_viewer;
-	pcl::visualization::ImageViewer depth_viewer, color_viewer;
-	boost::mutex cd_mutex, depth_mutex, color_mutex;
-	boost::shared_ptr<pcl::io::DepthImage> depth_image_;
-	boost::shared_ptr<pcl::io::Image> color_image_;
 };
 
 void print_help()
 {
 	cerr << "PCLGrabber usage:" << endl;
 
-	cerr << " -l : list all available input platforms and devices" << endl;
-	cerr << " -p : specify the input platform" << endl;
-	cerr << " -d : specify the input device" << endl;
-	cerr << " -h : print this message" << endl;
+	cerr << "  -l : list all available input platforms and devices" << endl;
+	cerr << "  -p : specify the input platform" << endl;
+	cerr << "  -d : specify the input device" << endl;
+	cerr << " -vc : visualise the cloud point" << endl;
+	cerr << " -vi : visualise images" << endl;
+	cerr << "  -w : write files using a specific format:" << endl;
+	cerr << "       0 - pclzf" << endl;
+	cerr << "       1 - pcd" << endl;
+	cerr << "  -h : print this message" << endl;
 }
 
 int main(int argc, char **argv)
@@ -173,6 +186,11 @@ int main(int argc, char **argv)
 
 	int platform = 0;
 	int device = 0;
+	int write_format = -1;
+	bool visualise_cloud = false;
+	bool visualise_images = false;
+
+	SimpleViewer viewer;
 
 	for (int i = 1; i < argc; i++)
 	{
@@ -182,13 +200,16 @@ int main(int argc, char **argv)
 			device_input.ListAllDevices();
 			return 0;
 		}
-		else if ((strcmp(argv[i], "-p") == 0) && (i < (argc - 1))) { platform = atoi(argv[++i]); }
-		else if ((strcmp(argv[i], "-d") == 0) && (i < (argc - 1))) { device = atoi(argv[++i]); }
-		else if (strcmp(argv[i], "-h") == 0)	{ print_help(); }
+		else if ((strcmp(argv[i], "-p") == 0) && (i < (argc - 1))) { viewer.Platform(atoi(argv[++i])); }
+		else if ((strcmp(argv[i], "-d") == 0) && (i < (argc - 1))) { viewer.Device(atoi(argv[++i])); }
+		else if ((strcmp(argv[i], "-w") == 0) && (i < (argc - 1))) { viewer.WriteFiles(atoi(argv[++i])); }
+		else if (strcmp(argv[i], "-vc") == 0) { viewer.VisualiseCloudPoint(true); }
+		else if (strcmp(argv[i], "-vi") == 0) { viewer.VisualiseImages(true); }
+		else if (strcmp(argv[i], "-h") == 0) { print_help(); }
 	}
 
-	SimpleOpenNIViewer v(platform, device);
-	v.run();
+	viewer.run();
+
 	return 0;
 }
 
