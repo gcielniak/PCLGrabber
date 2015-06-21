@@ -39,12 +39,13 @@ namespace pcl
 					grabber = new ImageGrabber<pcl::PointXYZRGBA>(file_name, frames_per_second, repeat, true);
 					return grabber;
 				}
-				PCL_THROW_EXCEPTION(pcl::IOException, "No recognised files in the director given!\n");
+				PCL_THROW_EXCEPTION(pcl::IOException, "No recognised files in the directory given!\n");
 			}
 			else //try reading a single file
 			{
 			}
 
+			return grabber;
 		}
 
 		static bool FilesInDir(boost::filesystem::path& dir, string ext)
