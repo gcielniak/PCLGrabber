@@ -132,7 +132,7 @@ namespace pcl
 				if (device > nr_of_devices)
 					throw new pcl::PCLException("DeviceInput::GetGrabber, wrong device number.");
 				ostringstream device_str;
-				device_str << device;
+				device_str << "#" << device + 1;
 				grabber = new io::OpenNI2Grabber(device_str.str());
 			}
 #endif
@@ -146,7 +146,7 @@ namespace pcl
 				if (device > nr_of_devices)
 					throw new pcl::PCLException("DeviceInput::GetGrabber, wrong device number.");
 				ostringstream device_str;
-				device_str << device;
+				device_str << "#" << device + 1;
 				grabber = new OpenNIGrabber(device_str.str());
 			}
 #endif

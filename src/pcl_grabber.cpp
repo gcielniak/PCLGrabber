@@ -107,20 +107,27 @@ public:
 
 		if (vis_images)
 		{
-			color_viewer = new visualization::ImageViewer("PCLGrabber: color image");
-			depth_viewer = new visualization::ImageViewer("PCLGrabber: depth image");
-
 			if (grabber->providesCallback<void(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, float flength)>())
 			{
 				boost::function<void(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, float flength)> f_image =
 					boost::bind(&SimpleViewer::image_cb_, this, _1, _2);
 				grabber->registerCallback(f_image);
+
+				color_viewer = new visualization::ImageViewer("PCLGrabber: color image");
+				depth_viewer = new visualization::ImageViewer("PCLGrabber: depth image");
 			}
 			else if (grabber->providesCallback<void(const boost::shared_ptr<openni_wrapper::Image>&, const boost::shared_ptr<openni_wrapper::DepthImage>&, float flength)>())
 			{
 				boost::function<void(const boost::shared_ptr<openni_wrapper::Image>&, const boost::shared_ptr<openni_wrapper::DepthImage>&, float flength)> f_image =
 					boost::bind(&SimpleViewer::image_cboni_, this, _1, _2);
 				grabber->registerCallback(f_image);
+
+				color_viewer = new visualization::ImageViewer("PCLGrabber: color image");
+				depth_viewer = new visualization::ImageViewer("PCLGrabber: depth image");
+			}
+			else
+			{
+				cerr << "Warning: no suitable visualisation callback found!" << endl;			
 			}
 		}
 
@@ -155,7 +162,6 @@ public:
 			default:
 				break;
 			}
-
 		}
 
 		grabber->start();
@@ -192,6 +198,11 @@ public:
 			if (depth_viewer && depth_image) {
 				depth_viewer->showShortImage(depth_image->getData(), depth_image->getWidth(), depth_image->getHeight());
 				depth_viewer->spinOnce();
+			}
+
+			if (color_viewer && color_image){
+				color_viewer->showRGBImage((unsigned char*)color_image->getData(), color_image->getWidth(), color_image->getHeight());
+				color_viewer->spinOnce();
 			}
 
 			if (depth_viewer && oni_depth_image) {
@@ -232,12 +243,6 @@ int main(int argc, char **argv)
 		print_help();
 		exit(0);
 	}
-
-	int platform = 0;
-	int device = 0;
-	int write_format = -1;
-	bool visualise_cloud = false;
-	bool visualise_images = false;
 
 	SimpleViewer viewer;
 
