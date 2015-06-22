@@ -22,10 +22,13 @@ namespace pcl
 
 	class FileOutput
 	{
-		int image_counter;
+		int image_counter, format;
 		string output_data_path;
+
 	public:
-		FileOutput() : image_counter(0), output_data_path(".\\data\\" + currentDateTime() + "\\") {}
+		FileOutput() : image_counter(0), output_data_path(".\\data\\" + currentDateTime() + "\\"), format(-1) {}
+
+		void Format(int value) { format = value; }
 
 		template <typename T> class PointCloud;
 		template <typename PointT>
@@ -116,6 +119,39 @@ namespace pcl
 
 			depth_writer.write(reinterpret_cast<const char*> (depth_image->getDepthMetaData().Data()), depth_image->getWidth(), depth_image->getHeight(), output_data_path + depth_file_name.str());
 			color_writer.write(reinterpret_cast<const char*> (color_image->getMetaData().Data()), color_image->getWidth(), color_image->getHeight(), output_data_path + color_file_name.str());
+		}
+
+		void Init(Grabber* grabber)
+		{
+			switch (format)
+			{
+			case 0:
+			{
+				if (grabber->providesCallback<void(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, float flength)>())
+				{
+					boost::function<void(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, float flength)> f_write =
+						boost::bind(&FileOutput::WriteImageLZF, this, _1, _2);
+					grabber->registerCallback(f_write);
+				}
+				else if (grabber->providesCallback<void(const boost::shared_ptr<openni_wrapper::Image>&, const boost::shared_ptr<openni_wrapper::DepthImage>&, float flength)>())
+				{
+					boost::function<void(const boost::shared_ptr<openni_wrapper::Image>&, const boost::shared_ptr<openni_wrapper::DepthImage>&, float flength)> f_write =
+						boost::bind(&FileOutput::WriteOniImageLZF, this, _1, _2);
+					grabber->registerCallback(f_write);
+				}
+
+			}
+				break;
+			case 1:
+			{
+				boost::function<void(const pcl::PointCloud<PointXYZRGBA>::ConstPtr&)> f_write =
+					boost::bind(&FileOutput::WriteCloudPCD<PointXYZRGBA>, this, _1);
+				grabber->registerCallback(f_write);
+			}
+				break;
+			default:
+				break;
+			}
 		}
 	};
 }

@@ -41,8 +41,10 @@ namespace pcl
 				}
 				PCL_THROW_EXCEPTION(pcl::IOException, "No recognised files in the directory given!\n");
 			}
-			else //try reading a single file
+			else if (boost::filesystem::extension(dir) == ".pcd") //single file
 			{
+				grabber = new PCDGrabber<PointXYZRGBA>(file_name, frames_per_second, repeat);
+				return grabber;
 			}
 
 			return grabber;
