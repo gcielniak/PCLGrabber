@@ -18,11 +18,11 @@ do \
     double now = pcl::getTime (); \
     ++count; \
     if (now - last >= 1.0) \
-					    { \
+						    { \
       std::cout << "Average framerate("<< _WHAT_ << "): " << double(count)/double(now - last) << " Hz" <<  std::endl; \
       count = 0; \
       last = now; \
-					    } \
+						    } \
 }while(false)
 #else
 #define FPS_CALC(_WHAT_) \
@@ -33,6 +33,7 @@ do \
 
 namespace pcl
 {
+	template <typename PointT>
 	class BasicViewer
 	{
 		bool vis_cloud, vis_images;
@@ -43,7 +44,7 @@ namespace pcl
 		boost::shared_ptr<io::Image> color_image_;
 		boost::shared_ptr<openni_wrapper::DepthImage> oni_depth_image_;
 		boost::shared_ptr<openni_wrapper::Image> oni_color_image_;
-		PointCloud<PointXYZRGBA>::ConstPtr cloud_;
+		typename PointCloud<PointT>::ConstPtr cloud_;
 
 	public:
 		BasicViewer() : vis_cloud(false), vis_images(false),
@@ -54,7 +55,13 @@ namespace pcl
 		void VisualiseCloudPoint(bool value) { vis_cloud = value; }
 		void VisualiseImages(bool value) { vis_images = value; }
 
-		void cloud_cb_(const PointCloud<PointXYZRGBA>::ConstPtr& cloud)
+		void cloud_cb_(const typename PointCloud<PointT>::Ptr& cloud)
+		{
+			boost::mutex::scoped_lock lock(cloud_mutex);
+			cloud_ = boost::static_pointer_cast<>;
+		}
+
+		void cloud_cb_const_(const typename PointCloud<PointT>::ConstPtr& cloud)
 		{
 			boost::mutex::scoped_lock lock(cloud_mutex);
 			cloud_ = cloud;
@@ -74,14 +81,24 @@ namespace pcl
 			oni_color_image_ = color_image;
 		}
 
-		void Init(Grabber* grabber)
+		void RegisterCallbacks(Grabber* grabber)
 		{
 			if (vis_cloud)
 			{
 				cloud_viewer = new visualization::CloudViewer("PCLGrabber: point cloud");
-				boost::function<void(const PointCloud<PointXYZRGBA>::ConstPtr&)> f_viscloud =
-					boost::bind(&BasicViewer::cloud_cb_, this, _1);
-				grabber->registerCallback(f_viscloud);
+
+				if (grabber->providesCallback<void(const PointCloud<PointT>::ConstPtr&)>())
+				{
+					boost::function<void(const PointCloud<PointT>::ConstPtr&)> f_viscloud =
+						boost::bind(&BasicViewer::cloud_cb_, this, _1);
+					grabber->registerCallback(f_viscloud);
+				}
+				else if (grabber->providesCallback<void(const PointCloud<PointT>::Ptr&)>())
+				{
+					boost::function<void(const PointCloud<PointT>::Ptr&)> f_viscloud =
+						boost::bind(&BasicViewer::cloud_cb_, this, _1);
+					grabber->registerCallback(f_viscloud);
+				}
 			}
 
 			if (vis_images)
@@ -119,48 +136,55 @@ namespace pcl
 				boost::shared_ptr<io::DepthImage> depth_image;
 				boost::shared_ptr<openni_wrapper::Image> oni_color_image;
 				boost::shared_ptr<openni_wrapper::DepthImage> oni_depth_image;
-				PointCloud<PointXYZRGBA>::ConstPtr cloud;
+				PointCloud<PointT>::ConstPtr cloud;
 
-				if (cloud_mutex.try_lock()){
-					cloud_.swap(cloud);
-					cloud_mutex.unlock();
+				if (cloud_viewer)
+				{
+					if (cloud_mutex.try_lock()){
+						cloud_.swap(cloud);
+						cloud_mutex.unlock();
+					}
+
+					if (cloud)
+						cloud_viewer->showCloud(cloud);
 				}
 
-				if (image_mutex.try_lock()){
-					depth_image_.swap(depth_image);
-					color_image_.swap(color_image);
-					image_mutex.unlock();
+				if (depth_viewer && color_viewer)
+				{
+					if (image_mutex.try_lock()){
+						depth_image_.swap(depth_image);
+						color_image_.swap(color_image);
+						image_mutex.unlock();
+					}
+
+					if (oni_image_mutex.try_lock()){
+						oni_depth_image_.swap(oni_depth_image);
+						oni_color_image_.swap(oni_color_image);
+						oni_image_mutex.unlock();
+					}
+
+					if (depth_image) {
+						depth_viewer->showShortImage(depth_image->getData(), depth_image->getWidth(), depth_image->getHeight());
+						depth_viewer->spinOnce();
+					}
+
+					if (color_image){
+						color_viewer->showRGBImage((unsigned char*)color_image->getData(), color_image->getWidth(), color_image->getHeight());
+						color_viewer->spinOnce();
+					}
+
+					if (oni_depth_image) {
+						depth_viewer->showShortImage(oni_depth_image->getDepthMetaData().Data(), oni_depth_image->getWidth(), oni_depth_image->getHeight());
+						depth_viewer->spinOnce();
+					}
+
+					if (oni_color_image){
+						color_viewer->showRGBImage((unsigned char*)oni_color_image->getMetaData().Data(), oni_color_image->getWidth(), oni_color_image->getHeight());
+						color_viewer->spinOnce();
+					}
+
 				}
 
-				if (oni_image_mutex.try_lock()){
-					oni_depth_image_.swap(oni_depth_image);
-					oni_color_image_.swap(oni_color_image);
-					oni_image_mutex.unlock();
-				}
-
-				if (cloud_viewer && cloud) {
-					cloud_viewer->showCloud(cloud);
-				}
-
-				if (depth_viewer && depth_image) {
-					depth_viewer->showShortImage(depth_image->getData(), depth_image->getWidth(), depth_image->getHeight());
-					depth_viewer->spinOnce();
-				}
-
-				if (color_viewer && color_image){
-					color_viewer->showRGBImage((unsigned char*)color_image->getData(), color_image->getWidth(), color_image->getHeight());
-					color_viewer->spinOnce();
-				}
-
-				if (depth_viewer && oni_depth_image) {
-					depth_viewer->showShortImage(oni_depth_image->getDepthMetaData().Data(), oni_depth_image->getWidth(), oni_depth_image->getHeight());
-					depth_viewer->spinOnce();
-				}
-
-				if (color_viewer && oni_color_image){
-					color_viewer->showRGBImage((unsigned char*)oni_color_image->getMetaData().Data(), oni_color_image->getWidth(), oni_color_image->getHeight());
-					color_viewer->spinOnce();
-				}
 				return true;
 			}
 			else

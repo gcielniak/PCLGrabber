@@ -30,9 +30,9 @@ int main(int argc, char **argv)
 		exit(0);
 	}
 
-	BasicGrabber grabber;
-	FileOutput writer;
-	BasicViewer viewer;
+	BasicGrabber<PointXYZ> grabber;
+	FileOutput<PointXYZ> writer;
+	BasicViewer<PointXYZ> viewer;
 
 	for (int i = 1; i < argc; i++)
 	{
@@ -55,8 +55,9 @@ int main(int argc, char **argv)
 
 	grabber.Init();
 
-	viewer.Init(grabber.GetGrabber());
-	writer.Init(grabber.GetGrabber());
+	viewer.RegisterCallbacks(grabber.GetGrabber());
+
+	writer.RegisterCallbacks(grabber.GetGrabber());
 
 	grabber.Start();
 

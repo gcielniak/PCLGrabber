@@ -4,13 +4,14 @@
 
 namespace pcl
 {
+	template <typename PointT>
 	class BasicGrabber
 	{
 		int platform, device;
 		string file_name;
 		Grabber* grabber;
 		DeviceInput device_input;
-		FileInput file_input;
+		FileInput<PointT> file_input;
 		double fps;
 		bool repeat;
 
