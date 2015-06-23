@@ -57,8 +57,7 @@ namespace pcl
 
 		void cloud_cb_(const typename PointCloud<PointT>::Ptr& cloud)
 		{
-			boost::mutex::scoped_lock lock(cloud_mutex);
-			cloud_ = boost::static_pointer_cast<>;
+			cloud_cb_const_(typename PointCloud<PointT>::ConstPtr(cloud));
 		}
 
 		void cloud_cb_const_(const typename PointCloud<PointT>::ConstPtr& cloud)
@@ -90,7 +89,7 @@ namespace pcl
 				if (grabber->providesCallback<void(const PointCloud<PointT>::ConstPtr&)>())
 				{
 					boost::function<void(const PointCloud<PointT>::ConstPtr&)> f_viscloud =
-						boost::bind(&BasicViewer::cloud_cb_, this, _1);
+						boost::bind(&BasicViewer::cloud_cb_const_, this, _1);
 					grabber->registerCallback(f_viscloud);
 				}
 				else if (grabber->providesCallback<void(const PointCloud<PointT>::Ptr&)>())
