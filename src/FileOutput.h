@@ -32,7 +32,7 @@ namespace pcl
 
 		void Format(int value) { format = value; }
 
-		void WriteCloudPCD(const typename PointCloud<PointT>::ConstPtr& cloud)
+		void WriteCloudPCD(const boost::shared_ptr<const PointCloud<PointT> >& cloud)
 		{
 			string timestamp = boost::posix_time::to_iso_string(boost::posix_time::microsec_clock::universal_time());
 
@@ -133,7 +133,7 @@ namespace pcl
 				{
 					boost::function<void(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, float flength)> f_write;
 					if (typeid(PointT) == typeid(PointXYZ))
-						f_write = boost::bind(&FileOutput::WriteImageLZF, this, nullptr, _2);//XYZ only
+						f_write = boost::bind(&FileOutput::WriteImageLZF, this, boost::shared_ptr<io::Image>(), _2);//XYZ only
 					else
 						f_write = boost::bind(&FileOutput::WriteImageLZF, this, _1, _2);
 
@@ -143,7 +143,7 @@ namespace pcl
 				{
 					boost::function<void(const boost::shared_ptr<openni_wrapper::Image>&, const boost::shared_ptr<openni_wrapper::DepthImage>&, float flength)> f_write;
 					if (typeid(PointT) == typeid(PointXYZ))
-						f_write = boost::bind(&FileOutput::WriteOniImageLZF, this, nullptr, _2);//XYZ only
+						f_write = boost::bind(&FileOutput::WriteOniImageLZF, this, boost::shared_ptr<openni_wrapper::Image>(), _2);//XYZ only
 					else
 						f_write = boost::bind(&FileOutput::WriteOniImageLZF, this, _1, _2);
 
@@ -153,7 +153,7 @@ namespace pcl
 				break;
 			case 1:
 			{
-				boost::function<void(const PointCloud<PointT>::ConstPtr&)> f_write =
+				boost::function<void(const boost::shared_ptr<const PointCloud<PointT> >&)> f_write =
 					boost::bind(&FileOutput::WriteCloudPCD, this, _1);
 				grabber->registerCallback(f_write);
 			}

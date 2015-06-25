@@ -1,4 +1,5 @@
 #pragma once
+#include <pcl/point_cloud.h>
 #include <pcl/visualization/image_viewer.h>
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl/io/image_depth.h>
@@ -44,7 +45,7 @@ namespace pcl
 		boost::shared_ptr<io::Image> color_image_;
 		boost::shared_ptr<openni_wrapper::DepthImage> oni_depth_image_;
 		boost::shared_ptr<openni_wrapper::Image> oni_color_image_;
-		typename PointCloud<PointT>::ConstPtr cloud_;
+		boost::shared_ptr<const PointCloud<PointT> > cloud_;
 
 	public:
 		BasicViewer() : vis_cloud(false), vis_images(false),
@@ -55,12 +56,12 @@ namespace pcl
 		void VisualiseCloudPoint(bool value) { vis_cloud = value; }
 		void VisualiseImages(bool value) { vis_images = value; }
 
-		void cloud_cb_(const typename PointCloud<PointT>::Ptr& cloud)
+		void cloud_cb_(const boost::shared_ptr<const PointCloud<PointT> >& cloud)
 		{
-			cloud_cb_const_(typename PointCloud<PointT>::ConstPtr(cloud));
+			cloud_cb_const_(boost::shared_ptr<const PointCloud<PointT> >(cloud));
 		}
 
-		void cloud_cb_const_(const typename PointCloud<PointT>::ConstPtr& cloud)
+		void cloud_cb_const_(const boost::shared_ptr<const PointCloud<PointT> >& cloud)
 		{
 			boost::mutex::scoped_lock lock(cloud_mutex);
 			cloud_ = cloud;
@@ -86,15 +87,15 @@ namespace pcl
 			{
 				cloud_viewer = new visualization::CloudViewer("PCLGrabber: point cloud");
 
-				if (grabber->providesCallback<void(const PointCloud<PointT>::ConstPtr&)>())
+				if (grabber->providesCallback<void(const boost::shared_ptr<const PointCloud<PointT> >&)>())
 				{
-					boost::function<void(const PointCloud<PointT>::ConstPtr&)> f_viscloud =
+					boost::function<void(const boost::shared_ptr<const PointCloud<PointT> >&)> f_viscloud =
 						boost::bind(&BasicViewer::cloud_cb_const_, this, _1);
 					grabber->registerCallback(f_viscloud);
 				}
-				else if (grabber->providesCallback<void(const PointCloud<PointT>::Ptr&)>())
+				else if (grabber->providesCallback<void(const boost::shared_ptr<PointCloud<PointT> >&)>())
 				{
-					boost::function<void(const PointCloud<PointT>::Ptr&)> f_viscloud =
+					boost::function<void(const boost::shared_ptr<PointCloud<PointT> >&)> f_viscloud =
 						boost::bind(&BasicViewer::cloud_cb_, this, _1);
 					grabber->registerCallback(f_viscloud);
 				}
@@ -135,7 +136,7 @@ namespace pcl
 				boost::shared_ptr<io::DepthImage> depth_image;
 				boost::shared_ptr<openni_wrapper::Image> oni_color_image;
 				boost::shared_ptr<openni_wrapper::DepthImage> oni_depth_image;
-				PointCloud<PointT>::ConstPtr cloud;
+				boost::shared_ptr<const PointCloud<PointT> > cloud;
 
 				if (cloud_viewer)
 				{
