@@ -11,6 +11,7 @@ if(WIN32)
     set(EXTRA_INCLUDE_DIRS "$ENV{KINECTSDK20_DIR}/inc")
     set(EXTRA_LIBRARY_DIRS "$ENV{KINECTSDK20_DIR}/lib/x64/")
     set(EXTRA_LIBRARIES "$ENV{KINECTSDK20_DIR}/lib/x64/kinect20.lib")
+    add_definitions(-DHAVE_KINECT2_NATIVE)
   endif()
 endif()
 

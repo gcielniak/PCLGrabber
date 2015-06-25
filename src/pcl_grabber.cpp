@@ -30,9 +30,10 @@ int main(int argc, char **argv)
 		exit(0);
 	}
 
-	BasicGrabber<PointXYZ> grabber;
-	FileOutput<PointXYZ> writer;
-	BasicViewer<PointXYZ> viewer;
+	typedef PointXYZRGBA PointType;
+	BasicGrabber<PointType> grabber;
+	FileOutput<PointType> writer;
+	BasicViewer<PointType> viewer;
 
 	for (int i = 1; i < argc; i++)
 	{
