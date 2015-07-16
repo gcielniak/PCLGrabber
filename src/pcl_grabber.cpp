@@ -19,6 +19,7 @@ void print_help()
 	cerr << "  -w : write files using a specific format:" << endl;
 	cerr << "       0 - pclzf" << endl;
 	cerr << "       1 - pcd" << endl;
+	cerr << "       2 - png" << endl;
 	cerr << "  -h : print this message" << endl;
 }
 

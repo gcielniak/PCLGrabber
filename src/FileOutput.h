@@ -4,6 +4,7 @@
 #include <pcl/io/lzf_image_io.h>
 #include <pcl/io/image_depth.h>
 #include <pcl/io/image.h>
+#include <pcl/io/png_io.h>
 #include <string>
 #include <sstream>
 #include <typeinfo>
@@ -42,29 +43,6 @@ namespace pcl
 			std::stringstream file_name;
 			file_name << "frame_" << timestamp << "_depth.pcd";
 			io::savePCDFile<PointT>(output_data_path + file_name.str(), *cloud, true);
-		}
-
-		void WriteDepthImageLZF(const boost::shared_ptr<io::DepthImage>& depth_image)
-		{
-			io::LZFDepth16ImageWriter writer;
-
-			string time_string = boost::posix_time::to_iso_string(boost::posix_time::microsec_clock::universal_time());
-
-			if (!boost::filesystem::exists(boost::filesystem::path(output_data_path)))
-				boost::filesystem::create_directories(boost::filesystem::path(output_data_path));
-
-			std::stringstream depth_file_name;
-			std::stringstream xml_file_name;
-			depth_file_name << "frame_" << time_string << "_depth.pclzf";
-			xml_file_name << "frame_" << time_string << ".xml";
-
-			io::CameraParameters parameters_depth;
-			parameters_depth.focal_length_x = parameters_depth.focal_length_y = depth_image->getFocalLength();
-			parameters_depth.principal_point_x = (depth_image->getWidth() - 1.f) / 2.f;
-			parameters_depth.principal_point_y = (depth_image->getHeight() - 1.f) / 2.f;
-
-			writer.write(reinterpret_cast<const char*> (depth_image->getData()), depth_image->getWidth(), depth_image->getHeight(), output_data_path + depth_file_name.str());
-			writer.writeParameters(parameters_depth, output_data_path + xml_file_name.str());
 		}
 
 		void WriteImageLZF(const boost::shared_ptr<io::Image>& color_image, const boost::shared_ptr<io::DepthImage>& depth_image)
@@ -123,6 +101,33 @@ namespace pcl
 				color_writer.write(reinterpret_cast<const char*> (color_image->getMetaData().Data()), color_image->getWidth(), color_image->getHeight(), output_data_path + color_file_name.str());
 		}
 
+		void WriteImagePNG(const boost::shared_ptr<io::Image>& color_image, const boost::shared_ptr<io::DepthImage>& depth_image)
+		{
+			io::LZFDepth16ImageWriter depth_writer;
+
+			string time_string = boost::posix_time::to_iso_string(boost::posix_time::microsec_clock::universal_time());
+
+			if (!boost::filesystem::exists(boost::filesystem::path(output_data_path)))
+				boost::filesystem::create_directories(boost::filesystem::path(output_data_path));
+
+			std::stringstream depth_file_name;
+			std::stringstream color_file_name;
+			std::stringstream xml_file_name;
+			depth_file_name << "frame_" << time_string << "_depth.png";
+			color_file_name << "frame_" << time_string << "_rgb.png";
+			xml_file_name << "frame_" << time_string << ".xml";
+
+			io::CameraParameters depth_parameters;
+			depth_parameters.focal_length_x = depth_parameters.focal_length_y = depth_image->getFocalLength();
+			depth_parameters.principal_point_x = (depth_image->getWidth() - 1.f) / 2.f;
+			depth_parameters.principal_point_y = (depth_image->getHeight() - 1.f) / 2.f;
+			depth_writer.writeParameters(depth_parameters, output_data_path + xml_file_name.str());
+
+			io::saveShortPNGFile(output_data_path + depth_file_name.str(), depth_image->getData(), depth_image->getWidth(), depth_image->getHeight(), 1);
+			if (color_image != nullptr)
+				io::saveRgbPNGFile(output_data_path + color_file_name.str(), reinterpret_cast<const unsigned char*> (color_image->getData()), color_image->getWidth(), color_image->getHeight());
+		}
+
 		void RegisterCallbacks(Grabber* grabber)
 		{
 			switch (format)
@@ -155,6 +160,16 @@ namespace pcl
 			{
 				boost::function<void(const boost::shared_ptr<const PointCloud<PointT> >&)> f_write =
 					boost::bind(&FileOutput::WriteCloudPCD, this, _1);
+				grabber->registerCallback(f_write);
+			}
+			case 2:
+			{
+				boost::function<void(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, float flength)> f_write;
+				if (typeid(PointT) == typeid(PointXYZ))
+					f_write = boost::bind(&FileOutput::WriteImagePNG, this, boost::shared_ptr<io::Image>(), _2);//XYZ only
+				else
+					f_write = boost::bind(&FileOutput::WriteImagePNG, this, _1, _2);
+
 				grabber->registerCallback(f_write);
 			}
 				break;

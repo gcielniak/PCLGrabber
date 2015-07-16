@@ -40,6 +40,11 @@ namespace pcl
 					grabber = new ImageGrabber<PointT>(file_name, frames_per_second, repeat, true);
 					return grabber;
 				}
+				else if (FilesInDir(dir, ".png"))
+				{
+					grabber = new ImageGrabber<PointT>(file_name, frames_per_second, repeat, false);
+					return grabber;
+				}
 				PCL_THROW_EXCEPTION(pcl::IOException, "No recognised files in the directory given!\n");
 			}
 			else if (boost::filesystem::extension(dir) == ".pcd") //single file
