@@ -64,6 +64,7 @@ namespace pcl
 
 			io::CameraParameters depth_parameters;
 			depth_parameters.focal_length_x = depth_parameters.focal_length_y = depth_image->getFocalLength();
+			cerr << depth_image->getFocalLength() << endl;
 			depth_parameters.principal_point_x = (depth_image->getWidth() - 1.f) / 2.f;
 			depth_parameters.principal_point_y = (depth_image->getHeight() - 1.f) / 2.f;
 			depth_writer.writeParameters(depth_parameters, output_data_path + xml_file_name.str());
@@ -162,6 +163,7 @@ namespace pcl
 					boost::bind(&FileOutput::WriteCloudPCD, this, _1);
 				grabber->registerCallback(f_write);
 			}
+				break;
 			case 2:
 			{
 				boost::function<void(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, float flength)> f_write;

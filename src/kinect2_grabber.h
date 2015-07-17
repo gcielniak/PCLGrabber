@@ -12,7 +12,7 @@
 #include <pcl/io/grabber.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
-
+#include <pcl/io/openni2/openni2_metadata_wrapper.h>
 
 namespace pcl
 {
@@ -41,18 +41,22 @@ namespace pcl
 			virtual std::string getName() const;
 			virtual float getFramesPerSecond() const;
 
-			typedef void ( signal_Kinect2_PointXYZ )( const boost::shared_ptr<const pcl::PointCloud<pcl::PointXYZ>>& );
+			typedef void (signal_Kinect2_PointXYZ)( const boost::shared_ptr<const pcl::PointCloud<pcl::PointXYZ>>& );
 			typedef void (signal_Kinect2_PointXYZRGB)(const boost::shared_ptr<const pcl::PointCloud<pcl::PointXYZRGB>>&);
 			typedef void (signal_Kinect2_PointXYZRGBA)(const boost::shared_ptr<const pcl::PointCloud<pcl::PointXYZRGBA>>&);
+			typedef void (signal_Kinect2_ImageDepth)(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, float reciprocalFocalLength);
 
 		protected:
 			boost::signals2::signal<signal_Kinect2_PointXYZ>* signal_PointXYZ;
 			boost::signals2::signal<signal_Kinect2_PointXYZRGB>* signal_PointXYZRGB;
 			boost::signals2::signal<signal_Kinect2_PointXYZRGBA>* signal_PointXYZRGBA;
+			boost::signals2::signal<signal_Kinect2_ImageDepth>* signal_ImageDepth;
 
 			pcl::PointCloud<pcl::PointXYZ>::Ptr convertDepthToPointXYZ( UINT16* depthBuffer );
 			pcl::PointCloud<pcl::PointXYZRGB>::Ptr convertRGBDepthToPointXYZRGB(RGBQUAD* colorBuffer, UINT16* depthBuffer);
 			pcl::PointCloud<pcl::PointXYZRGBA>::Ptr convertRGBDepthToPointXYZRGBA(RGBQUAD* colorBuffer, UINT16* depthBuffer);
+			io::Image::Ptr convertColorImage(const std::vector<RGBQUAD>& colorBuffer);
+			io::DepthImage::Ptr convertDepthImage(const std::vector<UINT16>& depthBuffer);
 
 			boost::thread thread;
 			mutable boost::mutex mutex;
@@ -77,6 +81,12 @@ namespace pcl
 			int depthWidth;
 			int depthHeight;
 			std::vector<UINT16> depthBuffer;
+
+			OniFrame oni_depth_frame, oni_color_frame;
+			boost::shared_ptr<io::DepthImage> depth_image;
+			boost::shared_ptr<io::Image> color_image;
+			io::FrameWrapper::Ptr depth_frameWrapper, color_frameWrapper;
+			std::vector<unsigned char> converted_buffer;
 	};
 
 	pcl::Kinect2Grabber::Kinect2Grabber()
@@ -98,6 +108,7 @@ namespace pcl
 		, signal_PointXYZ( nullptr )
 		, signal_PointXYZRGB( nullptr )
 		, signal_PointXYZRGBA(nullptr)
+		, signal_ImageDepth(nullptr)
 	{
 		// Create Sensor Instance
 		result = GetDefaultKinectSensor( &sensor );
@@ -176,6 +187,7 @@ namespace pcl
 		signal_PointXYZ = createSignal<signal_Kinect2_PointXYZ>();
 		signal_PointXYZRGB = createSignal<signal_Kinect2_PointXYZRGB>();
 		signal_PointXYZRGBA = createSignal<signal_Kinect2_PointXYZRGBA>();
+		signal_ImageDepth = createSignal<signal_Kinect2_ImageDepth>();
 	}
 
 	pcl::Kinect2Grabber::~Kinect2Grabber() throw( )
@@ -185,6 +197,7 @@ namespace pcl
 		disconnect_all_slots<signal_Kinect2_PointXYZ>();
 		disconnect_all_slots<signal_Kinect2_PointXYZRGB>();
 		disconnect_all_slots<signal_Kinect2_PointXYZRGBA>();
+		disconnect_all_slots<signal_Kinect2_ImageDepth>();
 
 		// End Processing
 		if( sensor ){
@@ -256,12 +269,14 @@ namespace pcl
 			result = colorReader->AcquireLatestFrame( &colorFrame );
 			if( SUCCEEDED( result ) ){
 				// Retrieved Color Data
-				result = colorFrame->CopyConvertedFrameDataToArray( colorBuffer.size() * sizeof( RGBQUAD ), reinterpret_cast<BYTE*>( &colorBuffer[0] ), ColorImageFormat::ColorImageFormat_Bgra );
-				if( FAILED( result ) ){
+				result = colorFrame->CopyConvertedFrameDataToArray(colorBuffer.size() * sizeof(RGBQUAD), reinterpret_cast<BYTE*>(&colorBuffer[0]), ColorImageFormat::ColorImageFormat_Bgra);
+				//default format: YUY2
+				if (FAILED(result)){
 					throw std::exception( "Exception : IColorFrame::CopyConvertedFrameDataToArray()" );
 				}
 			}
-			SafeRelease( colorFrame );
+
+			SafeRelease(colorFrame);
 
 			// Acquire Latest Depth Frame
 			IDepthFrame* depthFrame = nullptr;
@@ -288,10 +303,66 @@ namespace pcl
 			if (signal_PointXYZRGBA->num_slots() > 0) {
 				signal_PointXYZRGBA->operator()(convertRGBDepthToPointXYZRGBA(&colorBuffer[0], &depthBuffer[0]));
 			}
+
+			if (signal_ImageDepth->num_slots() > 0)
+			{
+				signal_ImageDepth->operator()(convertColorImage(colorBuffer), convertDepthImage(depthBuffer), 1.0);
+			}
 		}
 	}
 
-	pcl::PointCloud<pcl::PointXYZ>::Ptr pcl::Kinect2Grabber::convertDepthToPointXYZ( UINT16* depthBuffer )
+	io::Image::Ptr pcl::Kinect2Grabber::convertColorImage(const std::vector<RGBQUAD>& buffer)
+	{
+		//TODO: convert directly from YUY2
+		//convert to rgb buffer
+		converted_buffer.resize(colorHeight*colorWidth*3);
+		for (unsigned int i = 0; i < buffer.size(); i++)
+		{
+			converted_buffer[i * 3 + 0] = buffer[i].rgbRed;
+			converted_buffer[i * 3 + 1] = buffer[i].rgbGreen;
+			converted_buffer[i * 3 + 2] = buffer[i].rgbBlue;
+		}
+
+		oni_color_frame.data = (void*)&converted_buffer[0];
+		oni_color_frame.dataSize = converted_buffer.size();
+		oni_color_frame.height = colorHeight;
+		oni_color_frame.width = colorWidth;
+		oni_color_frame.stride = colorWidth*3;
+
+		openni::VideoFrameRef frame;
+		frame._setFrame(&oni_color_frame);
+		color_frameWrapper = boost::make_shared<io::openni2::Openni2FrameWrapper>(frame);
+
+		color_image =
+			boost::make_shared<io::ImageRGB24>(color_frameWrapper);
+
+		return color_image;
+	}
+
+	io::DepthImage::Ptr pcl::Kinect2Grabber::convertDepthImage(const std::vector<UINT16>& buffer)
+	{
+		oni_depth_frame.data = (void*)&buffer[0];
+		oni_depth_frame.dataSize = buffer.size()*sizeof(UINT16);
+		oni_depth_frame.height = depthHeight;
+		oni_depth_frame.width = depthWidth;
+		oni_depth_frame.stride = depthWidth*sizeof(UINT16);
+		
+		openni::VideoFrameRef frame;
+		frame._setFrame(&oni_depth_frame);
+		depth_frameWrapper = boost::make_shared<io::openni2::Openni2FrameWrapper>(frame);
+
+		float focalLength = 0;
+		float baseline = 0;
+		pcl::uint64_t no_sample_value = 0;
+		pcl::uint64_t shadow_value = 0;
+
+		depth_image =
+			boost::make_shared<io::DepthImage>(depth_frameWrapper, baseline, focalLength, shadow_value, no_sample_value);
+
+		return depth_image;
+	}
+
+	pcl::PointCloud<pcl::PointXYZ>::Ptr pcl::Kinect2Grabber::convertDepthToPointXYZ(UINT16* depthBuffer)
 	{
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud( new pcl::PointCloud<pcl::PointXYZ>() );
 

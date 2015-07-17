@@ -3,7 +3,7 @@
 #include <string>
 #include <sstream>
 #include <pcl/exceptions.h>
-#include <pcl/io/image_grabber.h>
+#include "ImageGrabberExt.h"
 #include <pcl/io/pcd_grabber.h>
 
 using namespace std;
@@ -37,12 +37,12 @@ namespace pcl
 				}
 				else if (FilesInDir(dir, ".pclzf"))
 				{
-					grabber = new ImageGrabber<PointT>(file_name, frames_per_second, repeat, true);
+					grabber = new ImageGrabberExt<PointT>(file_name, frames_per_second, repeat, true);
 					return grabber;
 				}
 				else if (FilesInDir(dir, ".png"))
 				{
-					grabber = new ImageGrabber<PointT>(file_name, frames_per_second, repeat, false);
+					grabber = new ImageGrabberExt<PointT>(file_name, frames_per_second, repeat, false);
 					return grabber;
 				}
 				PCL_THROW_EXCEPTION(pcl::IOException, "No recognised files in the directory given!\n");
