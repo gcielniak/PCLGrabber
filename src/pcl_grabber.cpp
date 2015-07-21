@@ -33,7 +33,7 @@ int main(int argc, char **argv)
 
 	typedef PointXYZRGBA PointType;
 	BasicGrabber<PointType> grabber;
-	FileOutput<PointType> writer;
+	FileOutput<PointType> writer, aux_writer;
 	BasicViewer<PointType> viewer;
 
 	for (int i = 1; i < argc; i++)
@@ -59,17 +59,19 @@ int main(int argc, char **argv)
 
 	viewer.RegisterCallbacks(grabber.GetGrabber());
 
-		//wait a couple of second for the second writer to have a distinct directory
-		boost::this_thread::sleep(boost::posix_time::seconds(2));
-
-		FileOutput<PointType> add_writer;
-
 	if (writer.Format() == 3)
 	{
 		writer.Format(0); //pclzf
-		add_writer.Format(1); //pcd
+		string dir_name = writer.OutputDir();
+		dir_name.insert(dir_name.length()-1, "_PCLZF");
+		writer.OutputDir(dir_name);
 		writer.RegisterCallbacks(grabber.GetGrabber());
-		add_writer.RegisterCallbacks(grabber.GetGrabber());
+
+		aux_writer.Format(1); //pcd
+		dir_name = aux_writer.OutputDir();
+		dir_name.insert(dir_name.length() - 1, "_PCD");
+		aux_writer.OutputDir(dir_name);
+		aux_writer.RegisterCallbacks(grabber.GetGrabber());
 	}
 	else
 	{
