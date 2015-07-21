@@ -59,7 +59,22 @@ int main(int argc, char **argv)
 
 	viewer.RegisterCallbacks(grabber.GetGrabber());
 
-	writer.RegisterCallbacks(grabber.GetGrabber());
+		//wait a couple of second for the second writer to have a distinct directory
+		boost::this_thread::sleep(boost::posix_time::seconds(2));
+
+		FileOutput<PointType> add_writer;
+
+	if (writer.Format() == 3)
+	{
+		writer.Format(0); //pclzf
+		add_writer.Format(1); //pcd
+		writer.RegisterCallbacks(grabber.GetGrabber());
+		add_writer.RegisterCallbacks(grabber.GetGrabber());
+	}
+	else
+	{
+		writer.RegisterCallbacks(grabber.GetGrabber());
+	}
 
 	grabber.Start();
 

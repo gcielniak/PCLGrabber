@@ -4,6 +4,7 @@
 
 namespace pcl
 {
+
 	template <typename PointT>
 	class BasicGrabber
 	{

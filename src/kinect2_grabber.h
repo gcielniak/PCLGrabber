@@ -46,7 +46,9 @@ namespace pcl
 			typedef void (signal_Kinect2_PointXYZRGBA)(const boost::shared_ptr<const pcl::PointCloud<pcl::PointXYZRGBA>>&);
 			typedef void (signal_Kinect2_ImageDepth)(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, float reciprocalFocalLength);
 
-		protected:
+			void PrintCalib();
+
+	protected:
 			boost::signals2::signal<signal_Kinect2_PointXYZ>* signal_PointXYZ;
 			boost::signals2::signal<signal_Kinect2_PointXYZRGB>* signal_PointXYZRGB;
 			boost::signals2::signal<signal_Kinect2_PointXYZRGBA>* signal_PointXYZRGBA;
@@ -351,8 +353,15 @@ namespace pcl
 		frame._setFrame(&oni_depth_frame);
 		depth_frameWrapper = boost::make_shared<io::openni2::Openni2FrameWrapper>(frame);
 
-		float focalLength = 0;
-		float baseline = 0;
+		CameraIntrinsics intrinsics;
+		mapper->GetDepthCameraIntrinsics(&intrinsics);
+
+		//parameters are not available during first couple of seconds
+		if (!intrinsics.FocalLengthX)
+			intrinsics.FocalLengthX = 364.82281494140625;
+
+		float focalLength = intrinsics.FocalLengthX;
+		float baseline = 52;
 		pcl::uint64_t no_sample_value = 0;
 		pcl::uint64_t shadow_value = 0;
 
@@ -485,6 +494,25 @@ namespace pcl
 		}
 
 		return cloud;
+	}
+
+	void pcl::Kinect2Grabber::PrintCalib()
+	{
+		if (mapper)
+		{
+			CameraIntrinsics intrinsics;
+
+			mapper->GetDepthCameraIntrinsics(&intrinsics);
+
+			cerr << "FocalLengthX: " << intrinsics.FocalLengthX << endl;
+			cerr << "FocalLengthY: " << intrinsics.FocalLengthY << endl;
+			cerr << "PrincipalPointX: " << intrinsics.PrincipalPointX << endl;
+			cerr << "PrincipalPointY: " << intrinsics.PrincipalPointY << endl;
+			cerr << "RadialDistortionFourthOrder: " << intrinsics.RadialDistortionFourthOrder << endl;
+			cerr << "RadialDistortionSecondOrder: " << intrinsics.RadialDistortionSecondOrder << endl;
+			cerr << "RadialDistortionSixthOrder: " << intrinsics.RadialDistortionSixthOrder << endl;
+
+		}
 	}
 }
 
