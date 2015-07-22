@@ -89,6 +89,9 @@ namespace pcl
 			boost::shared_ptr<io::Image> color_image;
 			io::FrameWrapper::Ptr depth_frameWrapper, color_frameWrapper;
 			std::vector<unsigned char> converted_buffer;
+			vector<DepthSpacePoint> depth_space_points;
+			vector<CameraSpacePoint> camera_space_points;
+			vector<ColorSpacePoint> color_space_points;
 	};
 
 	pcl::Kinect2Grabber::Kinect2Grabber()
@@ -459,38 +462,41 @@ namespace pcl
 
 		cloud->points.resize(cloud->height * cloud->width);
 
-		vector<DepthSpacePoint> depth_space_points(cloud->points.size());
-		vector<CameraSpacePoint> camera_space_points(cloud->points.size());
-		mapper->MapDepthPointsToCameraSpace(depth_space_points.size(), &depth_space_points[0], depth_space_points.size(), depthBuffer, camera_space_points.size(), &camera_space_points[0]);
-
-		int indx = 0;
-		pcl::PointXYZRGBA* pt = &cloud->points[0];
-		for (int y = 0; y < depthHeight; y++){
-			for (int x = 0; x < depthWidth; x++, pt++, indx++){
-				pcl::PointXYZRGBA point;
-
-				DepthSpacePoint depthSpacePoint = { static_cast<float>(x), static_cast<float>(y) };
-				UINT16 depth = depthBuffer[indx];
-
-				// Coordinate Mapping Depth to Color Space, and Setting PointCloud RGB
-				ColorSpacePoint colorSpacePoint = { 0.0f, 0.0f };
-				mapper->MapDepthPointToColorSpace(depthSpacePoint, depth, &colorSpacePoint);
-				// Coordinate Mapping Depth to Camera Space, and Setting PointCloud XYZ
-//				CameraSpacePoint cameraSpacePoint = { 0.0f, 0.0f, 0.0f };
-//				mapper->MapDepthPointToCameraSpace(depthSpacePoint, depth, &cameraSpacePoint);
-				int colorX = static_cast<int>(std::floor(colorSpacePoint.X + 0.5f));
-				int colorY = static_cast<int>(std::floor(colorSpacePoint.Y + 0.5f));
-				if ((0 <= colorX) && (colorX < colorWidth) && (0 <= colorY) && (colorY < colorHeight)){
-					pt->x = camera_space_points[indx].X;
-					pt->y = camera_space_points[indx].Y;
-					pt->z = camera_space_points[indx].Z;
-					RGBQUAD color = colorBuffer[colorY * colorWidth + colorX];
-					pt->b = color.rgbBlue;
-					pt->g = color.rgbGreen;
-					pt->r = color.rgbRed;
-					pt->a = 0;
+		if (depth_space_points.size() != cloud->points.size())
+		{
+			depth_space_points.resize(cloud->points.size());
+			for (int y = 0, int indx = 0; y < depthHeight; y++){
+				for (int x = 0; x < depthWidth; x++, indx++){
+					depth_space_points[indx].X = x;
+					depth_space_points[indx].Y = y;
 				}
 			}
+		}
+
+		if (camera_space_points.size() != depth_space_points.size())
+			camera_space_points.resize(depth_space_points.size());
+
+		if (color_space_points.size() != depth_space_points.size())
+			color_space_points.resize(depth_space_points.size());
+
+		mapper->MapDepthPointsToCameraSpace(depth_space_points.size(), &depth_space_points[0], depth_space_points.size(), depthBuffer, camera_space_points.size(), &camera_space_points[0]);
+		mapper->MapDepthPointsToColorSpace(depth_space_points.size(), &depth_space_points[0], depth_space_points.size(), depthBuffer, color_space_points.size(), &color_space_points[0]);
+
+		pcl::PointXYZRGBA* pt = &cloud->points[0];
+		for (int i = 0; i < cloud->points.size(); i++, pt++)
+		{
+			int colorX = (int)color_space_points[i].X;
+			int colorY = (int)color_space_points[i].Y;
+
+			if ((colorX >= 0) && (colorX < colorWidth) && (colorY >= 0) && (colorY < colorHeight))
+			{
+				pt->x = camera_space_points[i].X;
+				pt->y = camera_space_points[i].Y;
+				pt->z = camera_space_points[i].Z;
+				pt->b = colorBuffer[i].rgbBlue;
+				pt->g = colorBuffer[i].rgbGreen;
+				pt->r = colorBuffer[i].rgbRed;
+			}		
 		}
 
 		return cloud;

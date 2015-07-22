@@ -2,6 +2,10 @@
 #include <pcl/pcl_config.h>
 #include <pcl/exceptions.h>
 
+#ifdef _MSC_VER
+#define _CRT_SECURE_NO_WARNINGS
+#endif
+
 #ifdef HAVE_OPENNI2
 #include <pcl/io/openni2_grabber.h>
 #endif
