@@ -459,37 +459,37 @@ namespace pcl
 
 		cloud->points.resize(cloud->height * cloud->width);
 
+		vector<DepthSpacePoint> depth_space_points(cloud->points.size());
+		vector<CameraSpacePoint> camera_space_points(cloud->points.size());
+		mapper->MapDepthPointsToCameraSpace(depth_space_points.size(), &depth_space_points[0], depth_space_points.size(), depthBuffer, camera_space_points.size(), &camera_space_points[0]);
+
+		int indx = 0;
 		pcl::PointXYZRGBA* pt = &cloud->points[0];
 		for (int y = 0; y < depthHeight; y++){
-			for (int x = 0; x < depthWidth; x++, pt++){
+			for (int x = 0; x < depthWidth; x++, pt++, indx++){
 				pcl::PointXYZRGBA point;
 
 				DepthSpacePoint depthSpacePoint = { static_cast<float>(x), static_cast<float>(y) };
-				UINT16 depth = depthBuffer[y * depthWidth + x];
+				UINT16 depth = depthBuffer[indx];
 
 				// Coordinate Mapping Depth to Color Space, and Setting PointCloud RGB
 				ColorSpacePoint colorSpacePoint = { 0.0f, 0.0f };
 				mapper->MapDepthPointToColorSpace(depthSpacePoint, depth, &colorSpacePoint);
+				// Coordinate Mapping Depth to Camera Space, and Setting PointCloud XYZ
+//				CameraSpacePoint cameraSpacePoint = { 0.0f, 0.0f, 0.0f };
+//				mapper->MapDepthPointToCameraSpace(depthSpacePoint, depth, &cameraSpacePoint);
 				int colorX = static_cast<int>(std::floor(colorSpacePoint.X + 0.5f));
 				int colorY = static_cast<int>(std::floor(colorSpacePoint.Y + 0.5f));
 				if ((0 <= colorX) && (colorX < colorWidth) && (0 <= colorY) && (colorY < colorHeight)){
+					pt->x = camera_space_points[indx].X;
+					pt->y = camera_space_points[indx].Y;
+					pt->z = camera_space_points[indx].Z;
 					RGBQUAD color = colorBuffer[colorY * colorWidth + colorX];
-					point.b = color.rgbBlue;
-					point.g = color.rgbGreen;
-					point.r = color.rgbRed;
-					point.a = 0;
+					pt->b = color.rgbBlue;
+					pt->g = color.rgbGreen;
+					pt->r = color.rgbRed;
+					pt->a = 0;
 				}
-
-				// Coordinate Mapping Depth to Camera Space, and Setting PointCloud XYZ
-				CameraSpacePoint cameraSpacePoint = { 0.0f, 0.0f, 0.0f };
-				mapper->MapDepthPointToCameraSpace(depthSpacePoint, depth, &cameraSpacePoint);
-				if ((0 <= colorX) && (colorX < colorWidth) && (0 <= colorY) && (colorY < colorHeight)){
-					point.x = cameraSpacePoint.X;
-					point.y = cameraSpacePoint.Y;
-					point.z = cameraSpacePoint.Z;
-				}
-
-				*pt = point;
 			}
 		}
 

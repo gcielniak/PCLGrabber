@@ -20,6 +20,7 @@ void print_help()
 	cerr << "       0 - pclzf" << endl;
 	cerr << "       1 - pcd" << endl;
 	cerr << "       2 - png" << endl;
+	cerr << "       3 - pclzf + pcd" << endl;
 	cerr << "  -h : print this message" << endl;
 }
 

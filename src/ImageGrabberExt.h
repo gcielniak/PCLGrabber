@@ -39,6 +39,7 @@ namespace pcl
 			this->registerCallback(f_cloud);
 
 			signal_ImageDepth = createSignal<Signal_ImageDepth>();
+			signal_PointCloud = createSignal<Signal_PointCloud>();
 		}
 
 		ImageGrabberExt(const std::string& depth_dir,
@@ -72,7 +73,7 @@ namespace pcl
 			if (signal_PointCloud->num_slots() > 0)
 			{
 				string file_name = dir + "\\" + this->getCurrentDepthFileName();
-				signal_PointCloud->operator()(ToPointCloud(ToRGB24Image(file_name), ToDepthImage(file_name)), false);
+				signal_PointCloud->operator()(ToPointCloud(ToRGB24Image(file_name), ToDepthImage(file_name), RGBCameraParameters(file_name), DepthCameraParameters(file_name)), false);
 			}
 		}
 
@@ -168,7 +169,34 @@ namespace pcl
 			return depth_image;
 		}
 
-		boost::shared_ptr<PointCloud<PointT> > ToPointCloud(const boost::shared_ptr<io::Image>& cimage, const boost::shared_ptr<io::DepthImage>& dimage)
+		boost::shared_ptr<io::CameraParameters> RGBCameraParameters(const string& file_name)
+		{
+			io::CameraParameters params;
+
+			string xml_file_name = file_name;
+			xml_file_name.replace(xml_file_name.end() - 6, xml_file_name.end(), ".xml");
+
+			io::LZFRGB24ImageReader rgb_reader;
+			rgb_reader.readParameters(xml_file_name);
+			params = rgb_reader.getParameters();
+			return boost::make_shared<io::CameraParameters>(params);
+		}
+
+		boost::shared_ptr<io::CameraParameters> DepthCameraParameters(const string& file_name)
+		{
+			io::CameraParameters params;
+
+			string xml_file_name = file_name;
+			xml_file_name.replace(xml_file_name.end() - 6, xml_file_name.end(), ".xml");
+
+			io::LZFDepth16ImageReader depth_reader;
+			depth_reader.readParameters(xml_file_name);
+			params = depth_reader.getParameters();
+			return boost::make_shared<io::CameraParameters>(params);
+		}
+
+		boost::shared_ptr<PointCloud<PointT> > ToPointCloud(const boost::shared_ptr<io::Image>& cimage, const boost::shared_ptr<io::DepthImage>& dimage,
+			const boost::shared_ptr<io::CameraParameters>& cparams, const boost::shared_ptr<io::CameraParameters>& dparams)
 		{
 			//reproject depth image
 			PointCloud<PointT>::Ptr point_cloud(new PointCloud<PointT>());
@@ -177,18 +205,24 @@ namespace pcl
 			point_cloud->height = dimage->getHeight();
 			point_cloud->is_dense = false;
 			point_cloud->points.resize(point_cloud->height * point_cloud->width);
-			//depth camera paramters
-			float fl = dimage->getFocalLength();
-			float cx = point_cloud->width / 2;
-			float cy = point_cloud->height / 2;
 
 			PointT* pt = &point_cloud->points[0];
 			for (int y = 0; y < point_cloud->height; y++){
 				for (int x = 0; x < point_cloud->width; x++, pt++){
 					unsigned short depth = dimage->getData()[y * point_cloud->width + x];
 					pt->z = depth * 0.001;
-					pt->x = (x - cx)*pt->z / fl;
-					pt->y = (y - cy)*pt->z / fl;
+					pt->x = (x - dparams->principal_point_x)*pt->z / dparams->focal_length_x;
+					pt->y = (y - dparams->principal_point_y)*pt->z / dparams->focal_length_y;
+					int cx = (int)(cparams->focal_length_x*(pt->x + 0.052) / pt->z + cparams->principal_point_x + 0.5);
+					int cy = (int)(cparams->focal_length_y*(pt->y - 0.020) / pt->z + cparams->principal_point_y + 0.5);
+					if ((cx >= 0) && (cx < cimage->getWidth()) && (cy >= 0) && (cy < cimage->getHeight()))
+					{
+						unsigned char* color_ptr = &((unsigned char*)cimage->getData())[(cy * cimage->getWidth() + cx) * 3];
+						pt->r = *color_ptr++;
+						pt->g = *color_ptr++;
+						pt->b = *color_ptr++;
+						pt->a = 0;
+					}
 				}
 			}
 

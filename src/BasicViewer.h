@@ -65,6 +65,7 @@ namespace pcl
 		{
 			boost::mutex::scoped_lock lock(cloud_mutex);
 			cloud_ = cloud;
+			FPS_CALC("CLOUD_VIS");
 		}
 
 		void image_cb_(const boost::shared_ptr<io::Image>& color_image, const boost::shared_ptr<io::DepthImage>& depth_image)
@@ -72,6 +73,7 @@ namespace pcl
 			boost::mutex::scoped_lock lock(image_mutex);
 			depth_image_ = depth_image;
 			color_image_ = color_image;
+			FPS_CALC("IMG_VIS");
 		}
 
 		void image_cboni_(const boost::shared_ptr<openni_wrapper::Image>& color_image, const boost::shared_ptr<openni_wrapper::DepthImage>& depth_image)
@@ -108,6 +110,14 @@ namespace pcl
 					boost::function<void(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, float flength)> f_image =
 						boost::bind(&BasicViewer::image_cb_, this, _1, _2);
 					grabber->registerCallback(f_image);
+
+					/*
+					cloud_viewer = new visualization::CloudViewer("PCLGrabber: point cloud");
+
+					boost::function<void(const boost::shared_ptr<const PointCloud<PointT> >&, bool)> f_viscloud =
+						boost::bind(&BasicViewer::cloud_cb_const_, this, _1);
+					grabber->registerCallback(f_viscloud);
+					*/
 
 					color_viewer = new visualization::ImageViewer("PCLGrabber: color image");
 					depth_viewer = new visualization::ImageViewer("PCLGrabber: depth image");
