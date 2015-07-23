@@ -101,15 +101,7 @@ namespace pcl
 			depth_writer.write(reinterpret_cast<const char*> (depth_image->getData()), depth_image->getWidth(), depth_image->getHeight(), output_data_path + depth_file_name.str());
 
 			if (color_image != nullptr)
-			{
-				io::CameraParameters color_parameters;
-				color_parameters.focal_length_x = color_parameters.focal_length_y = 1081.37;
-				color_parameters.principal_point_x = (color_image->getWidth() - 1.f) / 2.f;
-				color_parameters.principal_point_y = (color_image->getHeight() - 1.f) / 2.f;
-				color_writer.writeParameters(color_parameters, output_data_path + xml_file_name.str());
-
 				color_writer.write(reinterpret_cast<const char*> (color_image->getData()), color_image->getWidth(), color_image->getHeight(), output_data_path + color_file_name.str());
-			}
 
 			FPS_CALC("WRITE PCLZF");
 		}
@@ -139,15 +131,7 @@ namespace pcl
 
 			depth_writer.write(reinterpret_cast<const char*> (depth_image->getDepthMetaData().Data()), depth_image->getWidth(), depth_image->getHeight(), output_data_path + depth_file_name.str());
 			if (color_image != nullptr)
-			{
-				io::CameraParameters color_parameters;
-				color_parameters.focal_length_x = color_parameters.focal_length_y = 1081.37;
-				color_parameters.principal_point_x = (color_image->getWidth() - 1.f) / 2.f;
-				color_parameters.principal_point_y = (color_image->getHeight() - 1.f) / 2.f;
-				color_writer.writeParameters(color_parameters, output_data_path + xml_file_name.str());
-
 				color_writer.write(reinterpret_cast<const char*> (color_image->getMetaData().Data()), color_image->getWidth(), color_image->getHeight(), output_data_path + color_file_name.str());
-			}
 		}
 
 		void WriteImagePNG(const boost::shared_ptr<io::Image>& color_image, const boost::shared_ptr<io::DepthImage>& depth_image)
@@ -175,15 +159,7 @@ namespace pcl
 
 			io::saveShortPNGFile(output_data_path + depth_file_name.str(), depth_image->getData(), depth_image->getWidth(), depth_image->getHeight(), 1);
 			if (color_image != nullptr)
-			{
-				io::CameraParameters color_parameters;
-				color_parameters.focal_length_x = color_parameters.focal_length_y = 1081.37;
-				color_parameters.principal_point_x = (color_image->getWidth() - 1.f) / 2.f;
-				color_parameters.principal_point_y = (color_image->getHeight() - 1.f) / 2.f;
-				color_writer.writeParameters(color_parameters, output_data_path + xml_file_name.str());
-
 				io::saveRgbPNGFile(output_data_path + color_file_name.str(), reinterpret_cast<const unsigned char*> (color_image->getData()), color_image->getWidth(), color_image->getHeight());
-			}
 
 			FPS_CALC("WRITE PNG");
 		}
