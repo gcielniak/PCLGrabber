@@ -266,6 +266,7 @@ namespace pcl
 
 	void pcl::Kinect2Grabber::threadFunction()
 	{
+
 		while( !quit ){
 			boost::unique_lock<boost::mutex> lock( mutex );
 
@@ -275,11 +276,11 @@ namespace pcl
 			if( SUCCEEDED( result ) ){
 				// Retrieved Color Data
 				result = colorFrame->CopyConvertedFrameDataToArray(colorBuffer.size() * sizeof(RGBQUAD), reinterpret_cast<BYTE*>(&colorBuffer[0]), ColorImageFormat::ColorImageFormat_Bgra);
-				//default format: YUY2
 				if (FAILED(result)){
 					throw std::exception( "Exception : IColorFrame::CopyConvertedFrameDataToArray()" );
 				}
 			}
+
 
 			SafeRelease(colorFrame);
 
@@ -321,11 +322,13 @@ namespace pcl
 		//TODO: convert directly from YUY2
 		//convert to rgb buffer
 		converted_buffer.resize(colorHeight*colorWidth*3);
-		for (unsigned int i = 0; i < buffer.size(); i++)
+		const RGBQUAD* cbuffer = &buffer[0];
+		unsigned char* convbuffer = &converted_buffer[0];
+		for (unsigned int i = 0; i < buffer.size(); i++, cbuffer++)
 		{
-			converted_buffer[i * 3 + 0] = buffer[i].rgbRed;
-			converted_buffer[i * 3 + 1] = buffer[i].rgbGreen;
-			converted_buffer[i * 3 + 2] = buffer[i].rgbBlue;
+			*convbuffer++ = cbuffer->rgbRed;
+			*convbuffer++ = cbuffer->rgbGreen;
+			*convbuffer++ = cbuffer->rgbBlue;
 		}
 
 		oni_color_frame.data = (void*)&converted_buffer[0];
@@ -465,7 +468,7 @@ namespace pcl
 		if (depth_space_points.size() != cloud->points.size())
 		{
 			depth_space_points.resize(cloud->points.size());
-			for (int y = 0, int indx = 0; y < depthHeight; y++){
+			for (int y = 0, indx = 0; y < depthHeight; y++){
 				for (int x = 0; x < depthWidth; x++, indx++){
 					depth_space_points[indx].X = x;
 					depth_space_points[indx].Y = y;
@@ -483,19 +486,23 @@ namespace pcl
 		mapper->MapDepthPointsToColorSpace(depth_space_points.size(), &depth_space_points[0], depth_space_points.size(), depthBuffer, color_space_points.size(), &color_space_points[0]);
 
 		pcl::PointXYZRGBA* pt = &cloud->points[0];
-		for (int i = 0; i < cloud->points.size(); i++, pt++)
-		{
-			int colorX = (int)color_space_points[i].X;
-			int colorY = (int)color_space_points[i].Y;
+		CameraSpacePoint* csp = &camera_space_points[0];
+		ColorSpacePoint* colsp = &color_space_points[0];
+		int color_size = colorWidth*colorHeight;
 
-			if ((colorX >= 0) && (colorX < colorWidth) && (colorY >= 0) && (colorY < colorHeight))
+		for (int i = 0; i < cloud->points.size(); i++, pt++, csp++, colsp++)
+		{
+			int color_ind = (int)(colsp->X + 0.5) + (int)(colsp->Y + 0.5)*colorWidth;
+			
+			if ((color_ind >= 0) && (color_ind < color_size))
 			{
-				pt->x = camera_space_points[i].X;
-				pt->y = camera_space_points[i].Y;
-				pt->z = camera_space_points[i].Z;
-				pt->b = colorBuffer[i].rgbBlue;
-				pt->g = colorBuffer[i].rgbGreen;
-				pt->r = colorBuffer[i].rgbRed;
+				RGBQUAD* cp = &colorBuffer[color_ind];
+				pt->x = csp->X;
+				pt->y = csp->Y;
+				pt->z = csp->Z;
+				pt->b = cp->rgbBlue;
+				pt->g = cp->rgbGreen;
+				pt->r = cp->rgbRed;
 			}		
 		}
 
