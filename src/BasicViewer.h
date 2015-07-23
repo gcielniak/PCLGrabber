@@ -1,7 +1,7 @@
 #pragma once
 #include <pcl/point_cloud.h>
+#include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/visualization/image_viewer.h>
-#include <pcl/visualization/cloud_viewer.h>
 #include <pcl/io/image_depth.h>
 #include <pcl/io/image.h>
 #include <pcl/io/openni_camera/openni_image.h>
@@ -19,11 +19,11 @@ do \
     double now = pcl::getTime (); \
     ++count; \
     if (now - last >= 1.0) \
-						    { \
+							    { \
       std::cout << "Average framerate("<< _WHAT_ << "): " << double(count)/double(now - last) << " Hz" <<  std::endl; \
       count = 0; \
       last = now; \
-						    } \
+							    } \
 }while(false)
 #else
 #define FPS_CALC(_WHAT_) \
@@ -38,7 +38,8 @@ namespace pcl
 	class BasicViewer
 	{
 		bool vis_cloud, vis_images;
-		visualization::CloudViewer *cloud_viewer;
+		visualization::PCLVisualizer *visualizer;
+
 		visualization::ImageViewer *depth_viewer, *color_viewer;
 		boost::mutex cloud_mutex, image_mutex, oni_image_mutex;
 		boost::shared_ptr<io::DepthImage> depth_image_;
@@ -49,17 +50,12 @@ namespace pcl
 
 	public:
 		BasicViewer() : vis_cloud(false), vis_images(false),
-			cloud_viewer(0), depth_viewer(0), color_viewer(0)
+			visualizer(0), depth_viewer(0), color_viewer(0)
 		{
 		}
 
 		void VisualiseCloudPoint(bool value) { vis_cloud = value; }
 		void VisualiseImages(bool value) { vis_images = value; }
-
-		void cloud_cb_(const boost::shared_ptr<const PointCloud<PointT> >& cloud)
-		{
-			cloud_cb_const_(boost::shared_ptr<const PointCloud<PointT> >(cloud));
-		}
 
 		void cloud_cb_const_(const boost::shared_ptr<const PointCloud<PointT> >& cloud)
 		{
@@ -85,22 +81,14 @@ namespace pcl
 
 		void RegisterCallbacks(Grabber* grabber)
 		{
-			if (vis_cloud)
+			if (vis_cloud && grabber->providesCallback<void(const boost::shared_ptr<const PointCloud<PointT> >&)>())
 			{
-				cloud_viewer = new visualization::CloudViewer("PCLGrabber: point cloud");
+				visualizer = new visualization::PCLVisualizer("PCLGrabber: point cloud");
+				visualizer->setCameraPosition(0.0, -0.0, -4.0, 0.0, -1.0, 0.0);
 
-				if (grabber->providesCallback<void(const boost::shared_ptr<const PointCloud<PointT> >&)>())
-				{
-					boost::function<void(const boost::shared_ptr<const PointCloud<PointT> >&)> f_viscloud =
-						boost::bind(&BasicViewer::cloud_cb_const_, this, _1);
-					grabber->registerCallback(f_viscloud);
-				}
-				else if (grabber->providesCallback<void(const boost::shared_ptr<PointCloud<PointT> >&)>())
-				{
-					boost::function<void(const boost::shared_ptr<PointCloud<PointT> >&)> f_viscloud =
-						boost::bind(&BasicViewer::cloud_cb_, this, _1);
-					grabber->registerCallback(f_viscloud);
-				}
+				boost::function<void(const boost::shared_ptr<const PointCloud<PointT> >&)> f_viscloud =
+					boost::bind(&BasicViewer::cloud_cb_const_, this, _1);
+				grabber->registerCallback(f_viscloud);
 			}
 
 			if (vis_images)
@@ -110,14 +98,6 @@ namespace pcl
 					boost::function<void(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, float flength)> f_image =
 						boost::bind(&BasicViewer::image_cb_, this, _1, _2);
 					grabber->registerCallback(f_image);
-
-					/*
-					cloud_viewer = new visualization::CloudViewer("PCLGrabber: point cloud");
-
-					boost::function<void(const boost::shared_ptr<const PointCloud<PointT> >&, bool)> f_viscloud =
-						boost::bind(&BasicViewer::cloud_cb_const_, this, _1);
-					grabber->registerCallback(f_viscloud);
-					*/
 
 					color_viewer = new visualization::ImageViewer("PCLGrabber: color image");
 					depth_viewer = new visualization::ImageViewer("PCLGrabber: depth image");
@@ -131,16 +111,12 @@ namespace pcl
 					color_viewer = new visualization::ImageViewer("PCLGrabber: color image");
 					depth_viewer = new visualization::ImageViewer("PCLGrabber: depth image");
 				}
-				else
-				{
-					cerr << "Warning: no suitable visualisation callback found!" << endl;
-				}
 			}
 		}
 
 		bool SpinOnce()
 		{
-			if (!((cloud_viewer && cloud_viewer->wasStopped()) || (depth_viewer && depth_viewer->wasStopped()) || (color_viewer && color_viewer->wasStopped())))
+			if (!((visualizer && visualizer->wasStopped()) || (depth_viewer && depth_viewer->wasStopped()) || (color_viewer && color_viewer->wasStopped())))
 			{
 				boost::shared_ptr<io::Image> color_image;
 				boost::shared_ptr<io::DepthImage> depth_image;
@@ -148,7 +124,7 @@ namespace pcl
 				boost::shared_ptr<openni_wrapper::DepthImage> oni_depth_image;
 				boost::shared_ptr<const PointCloud<PointT> > cloud;
 
-				if (cloud_viewer)
+				if (visualizer)
 				{
 					if (cloud_mutex.try_lock()){
 						cloud_.swap(cloud);
@@ -156,7 +132,13 @@ namespace pcl
 					}
 
 					if (cloud)
-						cloud_viewer->showCloud(cloud);
+					{
+						visualization::PointCloudColorHandlerRGBField<PointT> color_h(cloud);
+						if (!visualizer->updatePointCloud<PointT>(cloud, color_h))
+							visualizer->addPointCloud<PointT>(cloud, color_h);
+					}
+
+					visualizer->spinOnce();
 				}
 
 				if (depth_viewer && color_viewer)
@@ -173,26 +155,38 @@ namespace pcl
 						oni_image_mutex.unlock();
 					}
 
-					if (depth_image) {
+					if (depth_image)
 						depth_viewer->showShortImage(depth_image->getData(), depth_image->getWidth(), depth_image->getHeight());
-						depth_viewer->spinOnce();
+
+					if (color_image)
+					{
+						if (color_image->getEncoding() != io::Image::Encoding::RGB)
+						{
+							vector<unsigned char> rgb_buffer(color_image->getWidth()*color_image->getHeight() * 3);
+							color_image->fillRGB(color_image->getWidth(), color_image->getHeight(), &rgb_buffer[0]);
+							color_viewer->showRGBImage(&rgb_buffer[0], color_image->getWidth(), color_image->getHeight());
+						}
+						else
+							color_viewer->showRGBImage((unsigned char*)color_image->getData(), color_image->getWidth(), color_image->getHeight());
 					}
 
-					if (color_image){
-						color_viewer->showRGBImage((unsigned char*)color_image->getData(), color_image->getWidth(), color_image->getHeight());
-						color_viewer->spinOnce();
-					}
-
-					if (oni_depth_image) {
+					if (oni_depth_image)
 						depth_viewer->showShortImage(oni_depth_image->getDepthMetaData().Data(), oni_depth_image->getWidth(), oni_depth_image->getHeight());
-						depth_viewer->spinOnce();
+
+					if (oni_color_image)
+					{
+						if (oni_color_image->getEncoding() != openni_wrapper::Image::Encoding::RGB)
+						{
+							vector<unsigned char> rgb_buffer(oni_color_image->getWidth()*oni_color_image->getHeight() * 3);
+							oni_color_image->fillRGB(oni_color_image->getWidth(), oni_color_image->getHeight(), &rgb_buffer[0]);
+							color_viewer->showRGBImage(&rgb_buffer[0], oni_color_image->getWidth(), oni_color_image->getHeight());
+						}
+						else
+							color_viewer->showRGBImage((unsigned char*)oni_color_image->getMetaData().Data(), oni_color_image->getWidth(), oni_color_image->getHeight());
 					}
 
-					if (oni_color_image){
-						color_viewer->showRGBImage((unsigned char*)oni_color_image->getMetaData().Data(), oni_color_image->getWidth(), oni_color_image->getHeight());
-						color_viewer->spinOnce();
-					}
-
+					depth_viewer->spinOnce();
+					color_viewer->spinOnce();
 				}
 
 				return true;

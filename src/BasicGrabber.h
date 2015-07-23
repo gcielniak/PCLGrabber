@@ -21,6 +21,11 @@ namespace pcl
 		{
 		}
 
+		~BasicGrabber()
+		{
+			Stop();
+		}
+
 		void Platform(int value) { platform = value; }
 
 		void Device(int value) { device = value; }
