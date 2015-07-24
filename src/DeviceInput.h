@@ -14,7 +14,7 @@
 #include <pcl/io/openni_camera/openni_driver.h>
 #endif
 #ifdef HAVE_ENSENSO
-#include <pcl/io/ensenso_grabber.h>
+#include "EnsensoGrabberExt.h"
 #endif
 #ifdef HAVE_KINECT2_NATIVE
 #include "kinect2_grabber.h"
@@ -170,9 +170,13 @@ namespace pcl
 #ifdef HAVE_ENSENSO
 			if (!grabber && (supported_platforms[platform] == ENSENSO_PLATFORM))
 			{
-				grabber = new EnsensoGrabber();
-				((EnsensoGrabber*)grabber)->openTcpPort();
-				((EnsensoGrabber*)grabber)->openDevice(device);
+				pcl::EnsensoGrabber device_manager;
+				int nr_of_devices = device_manager.enumDevices();
+
+				if (device > nr_of_devices)
+					throw new pcl::PCLException("DeviceInput::GetGrabber, wrong device number.");
+
+				grabber = new EnsensoGrabberExt(device);
 			}
 #endif
 

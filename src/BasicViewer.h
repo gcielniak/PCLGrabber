@@ -57,7 +57,7 @@ namespace pcl
 		void VisualiseCloudPoint(bool value) { vis_cloud = value; }
 		void VisualiseImages(bool value) { vis_images = value; }
 
-		void cloud_cb_const_(const boost::shared_ptr<const PointCloud<PointT> >& cloud)
+		void cloud_cb_(const boost::shared_ptr<const PointCloud<PointT> >& cloud)
 		{
 			boost::mutex::scoped_lock lock(cloud_mutex);
 			cloud_ = cloud;
@@ -87,7 +87,7 @@ namespace pcl
 				visualizer->setCameraPosition(0.0, -0.0, -4.0, 0.0, -1.0, 0.0);
 
 				boost::function<void(const boost::shared_ptr<const PointCloud<PointT> >&)> f_viscloud =
-					boost::bind(&BasicViewer::cloud_cb_const_, this, _1);
+					boost::bind(&BasicViewer::cloud_cb_, this, _1);
 				grabber->registerCallback(f_viscloud);
 			}
 
