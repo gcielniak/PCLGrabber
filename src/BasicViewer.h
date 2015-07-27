@@ -42,10 +42,14 @@ namespace pcl
 
 		visualization::ImageViewer *depth_viewer, *color_viewer;
 		boost::mutex cloud_mutex, image_mutex, oni_image_mutex;
+#ifdef HAVE_OPENNI2
 		boost::shared_ptr<io::DepthImage> depth_image_;
 		boost::shared_ptr<io::Image> color_image_;
+#endif
+#ifdef HAVE_OPENNI
 		boost::shared_ptr<openni_wrapper::DepthImage> oni_depth_image_;
 		boost::shared_ptr<openni_wrapper::Image> oni_color_image_;
+#endif
 		boost::shared_ptr<const PointCloud<PointT> > cloud_;
 
 	public:
@@ -64,6 +68,7 @@ namespace pcl
 			FPS_CALC("CLOUD_VIS");
 		}
 
+#ifdef HAVE_OPENNI2
 		void image_cb_(const boost::shared_ptr<io::Image>& color_image, const boost::shared_ptr<io::DepthImage>& depth_image)
 		{
 			boost::mutex::scoped_lock lock(image_mutex);
@@ -71,13 +76,17 @@ namespace pcl
 			color_image_ = color_image;
 			FPS_CALC("IMG_VIS");
 		}
+#endif
 
+#ifdef HAVE_OPENNI
 		void image_cboni_(const boost::shared_ptr<openni_wrapper::Image>& color_image, const boost::shared_ptr<openni_wrapper::DepthImage>& depth_image)
 		{
 			boost::mutex::scoped_lock lock(image_mutex);
 			oni_depth_image_ = depth_image;
 			oni_color_image_ = color_image;
+			FPS_CALC("IMG_VIS");
 		}
+#endif
 
 		void RegisterCallbacks(Grabber* grabber)
 		{
@@ -93,6 +102,7 @@ namespace pcl
 
 			if (vis_images)
 			{
+#ifdef HAVE_OPENNI2
 				if (grabber->providesCallback<void(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, float flength)>())
 				{
 					boost::function<void(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, float flength)> f_image =
@@ -102,7 +112,10 @@ namespace pcl
 					color_viewer = new visualization::ImageViewer("PCLGrabber: color image");
 					depth_viewer = new visualization::ImageViewer("PCLGrabber: depth image");
 				}
-				else if (grabber->providesCallback<void(const boost::shared_ptr<openni_wrapper::Image>&, const boost::shared_ptr<openni_wrapper::DepthImage>&, float flength)>())
+#endif
+#ifdef HAVE_OPENNI
+				//use openni callbacks only if openni2 callbacks are not being used
+				if (!color_viewer && !depth_viewer && grabber->providesCallback<void(const boost::shared_ptr<openni_wrapper::Image>&, const boost::shared_ptr<openni_wrapper::DepthImage>&, float flength)>())
 				{
 					boost::function<void(const boost::shared_ptr<openni_wrapper::Image>&, const boost::shared_ptr<openni_wrapper::DepthImage>&, float flength)> f_image =
 						boost::bind(&BasicViewer::image_cboni_, this, _1, _2);
@@ -111,6 +124,7 @@ namespace pcl
 					color_viewer = new visualization::ImageViewer("PCLGrabber: color image");
 					depth_viewer = new visualization::ImageViewer("PCLGrabber: depth image");
 				}
+#endif
 			}
 		}
 
@@ -118,10 +132,14 @@ namespace pcl
 		{
 			if (!((visualizer && visualizer->wasStopped()) || (depth_viewer && depth_viewer->wasStopped()) || (color_viewer && color_viewer->wasStopped())))
 			{
+#ifdef HAVE_OPENNI2
 				boost::shared_ptr<io::Image> color_image;
 				boost::shared_ptr<io::DepthImage> depth_image;
+#endif
+#ifdef HAVE_OPENNI
 				boost::shared_ptr<openni_wrapper::Image> oni_color_image;
 				boost::shared_ptr<openni_wrapper::DepthImage> oni_depth_image;
+#endif
 				boost::shared_ptr<const PointCloud<PointT> > cloud;
 
 				if (visualizer)
@@ -143,16 +161,11 @@ namespace pcl
 
 				if (depth_viewer && color_viewer)
 				{
+#ifdef HAVE_OPENNI2
 					if (image_mutex.try_lock()){
 						depth_image_.swap(depth_image);
 						color_image_.swap(color_image);
 						image_mutex.unlock();
-					}
-
-					if (oni_image_mutex.try_lock()){
-						oni_depth_image_.swap(oni_depth_image);
-						oni_color_image_.swap(oni_color_image);
-						oni_image_mutex.unlock();
 					}
 
 					if (depth_image)
@@ -169,6 +182,13 @@ namespace pcl
 						else
 							color_viewer->showRGBImage((unsigned char*)color_image->getData(), color_image->getWidth(), color_image->getHeight());
 					}
+#endif
+#ifdef HAVE_OPENNI
+					if (oni_image_mutex.try_lock()){
+						oni_depth_image_.swap(oni_depth_image);
+						oni_color_image_.swap(oni_color_image);
+						oni_image_mutex.unlock();
+					}
 
 					if (oni_depth_image)
 						depth_viewer->showShortImage(oni_depth_image->getDepthMetaData().Data(), oni_depth_image->getWidth(), oni_depth_image->getHeight());
@@ -184,7 +204,7 @@ namespace pcl
 						else
 							color_viewer->showRGBImage((unsigned char*)oni_color_image->getMetaData().Data(), oni_color_image->getWidth(), oni_color_image->getHeight());
 					}
-
+#endif
 					depth_viewer->spinOnce();
 					color_viewer->spinOnce();
 				}

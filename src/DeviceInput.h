@@ -7,17 +7,21 @@
 #endif
 
 #ifdef HAVE_OPENNI2
+#define HAVE_ONI
 #include <pcl/io/openni2_grabber.h>
 #endif
 #ifdef HAVE_OPENNI
+#define HAVE_ONI
 #include <pcl/io/openni_grabber.h>
 #include <pcl/io/openni_camera/openni_driver.h>
 #endif
+#ifdef HAVE_ONI
 #ifdef HAVE_ENSENSO
 #include "EnsensoGrabberExt.h"
 #endif
 #ifdef HAVE_KINECT2_NATIVE
 #include "kinect2_grabber.h"
+#endif
 #endif
 
 using namespace std;
@@ -49,11 +53,13 @@ namespace pcl
 #ifdef HAVE_OPENNI
 			supported_platforms.push_back(OPENNI_PLATFORM);
 #endif
+#ifdef HAVE_ONI
 #ifdef HAVE_ENSENSO
 			supported_platforms.push_back(ENSENSO_PLATFORM);
 #endif
 #ifdef HAVE_KINECT2_NATIVE
 			supported_platforms.push_back(KINECT2_NATIVE_PLATFORM);
+#endif
 #endif
 		}
 
@@ -66,8 +72,6 @@ namespace pcl
 				if (platform_type == ENSENSO_PLATFORM)
 					((EnsensoGrabber*)grabber)->closeDevice();
 #endif
-
-				delete grabber;
 			}
 		}
 
@@ -109,6 +113,7 @@ namespace pcl
 				}
 #endif
 
+#ifdef HAVE_ONI
 #ifdef HAVE_ENSENSO
 				if (supported_platforms[i] == ENSENSO_PLATFORM)
 				{
@@ -128,6 +133,7 @@ namespace pcl
 				{
 					cerr << "Platform " << i << ": Kinect2 Native" << endl;
 				}
+#endif
 #endif
 			}
 		}
@@ -167,6 +173,7 @@ namespace pcl
 			}
 #endif
 
+#ifdef HAVE_ONI
 #ifdef HAVE_ENSENSO
 			if (!grabber && (supported_platforms[platform] == ENSENSO_PLATFORM))
 			{
@@ -186,7 +193,7 @@ namespace pcl
 				grabber = new Kinect2Grabber();
 			}
 #endif
-
+#endif			
 			if (!grabber)
 				throw new pcl::PCLException("DeviceInput::GetGrabber, could not initalise the specified device.");
 
