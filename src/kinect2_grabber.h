@@ -75,6 +75,7 @@ namespace pcl
 			boost::shared_ptr<io::DepthImage> depth_image;
 			io::FrameWrapper::Ptr depth_frameWrapper, color_frameWrapper;
 			std::vector<unsigned char> converted_buffer;
+			boost::shared_ptr<OniFrame> oni_depth_frame, oni_color_frame;
 #endif
 #ifdef HAVE_OPENNI
 			boost::signals2::signal<signal_Kinect2_ImageDepthOni>* signal_ImageDepthOni;
@@ -116,7 +117,6 @@ namespace pcl
 			int depthHeight;
 			std::vector<UINT16> depthBuffer;
 
-			OniFrame oni_depth_frame, oni_color_frame;
 			vector<DepthSpacePoint> depth_space_points;
 			vector<CameraSpacePoint> camera_space_points;
 			vector<ColorSpacePoint> color_space_points;
@@ -380,14 +380,15 @@ namespace pcl
 			*convbuffer++ = cbuffer->rgbBlue;
 		}
 
-		oni_color_frame.data = (void*)&converted_buffer[0];
-		oni_color_frame.dataSize = converted_buffer.size();
-		oni_color_frame.height = colorHeight;
-		oni_color_frame.width = colorWidth;
-		oni_color_frame.stride = colorWidth*3;
+		oni_color_frame = boost::make_shared<OniFrame>();
+		oni_color_frame->data = (void*)&converted_buffer[0];
+		oni_color_frame->dataSize = converted_buffer.size();
+		oni_color_frame->height = colorHeight;
+		oni_color_frame->width = colorWidth;
+		oni_color_frame->stride = colorWidth * 3;
 
 		openni::VideoFrameRef frame;
-		frame._setFrame(&oni_color_frame);
+		frame._setFrame(oni_color_frame.get());
 		color_frameWrapper = boost::make_shared<io::openni2::Openni2FrameWrapper>(frame);
 
 		color_image =
@@ -398,14 +399,15 @@ namespace pcl
 
 	io::DepthImage::Ptr Kinect2Grabber::convertDepthImage(const std::vector<UINT16>& buffer)
 	{
-		oni_depth_frame.data = (void*)&buffer[0];
-		oni_depth_frame.dataSize = buffer.size()*sizeof(UINT16);
-		oni_depth_frame.height = depthHeight;
-		oni_depth_frame.width = depthWidth;
-		oni_depth_frame.stride = depthWidth*sizeof(UINT16);
+		oni_depth_frame = boost::make_shared<OniFrame>();
+		oni_depth_frame->data = (void*)&buffer[0];
+		oni_depth_frame->dataSize = buffer.size()*sizeof(UINT16);
+		oni_depth_frame->height = depthHeight;
+		oni_depth_frame->width = depthWidth;
+		oni_depth_frame->stride = depthWidth*sizeof(UINT16);
 		
 		openni::VideoFrameRef frame;
-		frame._setFrame(&oni_depth_frame);
+		frame._setFrame(oni_depth_frame.get());
 		depth_frameWrapper = boost::make_shared<io::openni2::Openni2FrameWrapper>(frame);
 
 		CameraIntrinsics intrinsics;

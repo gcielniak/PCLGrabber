@@ -72,6 +72,7 @@ namespace pcl
 				if (platform_type == ENSENSO_PLATFORM)
 					((EnsensoGrabber*)grabber)->closeDevice();
 #endif
+//				delete grabber;
 			}
 		}
 
