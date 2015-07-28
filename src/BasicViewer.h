@@ -178,7 +178,7 @@ namespace pcl
 
 					if (color_image)
 					{
-						if (color_image->getEncoding() != io::Image::Encoding::RGB)
+						if (color_image->getEncoding() != io::Image::RGB)
 						{
 							std::vector<unsigned char> rgb_buffer(color_image->getWidth()*color_image->getHeight() * 3);
 							color_image->fillRGB(color_image->getWidth(), color_image->getHeight(), &rgb_buffer[0]);
@@ -200,7 +200,7 @@ namespace pcl
 
 					if (oni_color_image)
 					{
-						if (oni_color_image->getEncoding() != openni_wrapper::Image::Encoding::RGB)
+						if (oni_color_image->getEncoding() != openni_wrapper::Image::RGB)
 						{
 							std::vector<unsigned char> rgb_buffer(oni_color_image->getWidth()*oni_color_image->getHeight() * 3);
 							oni_color_image->fillRGB(oni_color_image->getWidth(), oni_color_image->getHeight(), &rgb_buffer[0]);

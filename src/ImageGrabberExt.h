@@ -39,7 +39,7 @@ namespace pcl
 		ImageGrabberExt(const std::string& dir_,
 			float frames_per_second = 0,
 			bool repeat = false,
-			bool pclzf_mode_ = false) : ImageGrabber(dir_, frames_per_second, repeat, pclzf_mode_), dir(dir_), pclzf_mode(pclzf_mode_)
+			bool pclzf_mode_ = false) : ImageGrabber<PointT>(dir_, frames_per_second, repeat, pclzf_mode_), dir(dir_), pclzf_mode(pclzf_mode_)
 #ifdef HAVE_OPENNI2
 			, signal_ImageDepth(nullptr), signal_PointCloud(nullptr)
 #endif
@@ -57,7 +57,7 @@ namespace pcl
 		ImageGrabberExt(const std::string& depth_dir,
 			const std::string& rgb_dir,
 			float frames_per_second = 0,
-			bool repeat = false) : ImageGrabber(depth_dir, rgb_dir, frames_per_second, repeat), pclzf_mode(false)
+			bool repeat = false) : ImageGrabber<PointT>(depth_dir, rgb_dir, frames_per_second, repeat), pclzf_mode(false)
 #ifdef HAVE_OPENNI2
 			, signal_ImageDepth(nullptr), signal_PointCloud(nullptr)
 #endif
@@ -66,14 +66,14 @@ namespace pcl
 
 		ImageGrabberExt(const std::vector<std::string>& depth_image_files,
 			float frames_per_second = 0,
-			bool repeat = false) : ImageGrabber(depth_image_files, frames_per_second, repeat), pclzf_mode(false)
+			bool repeat = false) : ImageGrabber<PointT>(depth_image_files, frames_per_second, repeat), pclzf_mode(false)
 #ifdef HAVE_OPENNI2
 			, signal_ImageDepth(nullptr), signal_PointCloud(nullptr)
 #endif
 		{
 		}
 
-		~ImageGrabberExt()
+		~ImageGrabberExt() throw()
 		{
 #ifdef HAVE_OPENNI2
 			disconnect_all_slots<Signal_ImageDepth>();
