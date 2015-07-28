@@ -1,6 +1,8 @@
 #pragma once
 #include <pcl/io/image_grabber.h>
+#ifdef HAVE_OPENNI2
 #include <pcl/io/openni2/openni2_metadata_wrapper.h>
+#endif
 
 namespace pcl
 {
@@ -10,59 +12,76 @@ namespace pcl
 	template <typename PointT>
 	class ImageGrabberExt : public ImageGrabber < PointT >
 	{
-		typedef void (Signal_ImageDepth)(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, float reciprocalFocalLength);
+#ifdef HAVE_OPENNI2
 		typedef void (Signal_PointCloud)(const boost::shared_ptr<const PointCloud<PointT> >&, bool fake);
+		typedef void (Signal_ImageDepth)(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, float reciprocalFocalLength);
+#endif
 
 	protected:
 		string dir;
 		vector<unsigned char> color_data;
 		vector<unsigned short> depth_data;
 		bool pclzf_mode;
+#ifdef HAVE_OPENNI2
 		OniFrame oni_depth_frame, oni_color_frame;
 		boost::shared_ptr<io::DepthImage> depth_image;
 		boost::shared_ptr<io::Image> color_image;
 		io::FrameWrapper::Ptr depth_frameWrapper, color_frameWrapper;
+#endif
 
 	protected:
-		boost::signals2::signal<Signal_ImageDepth>* signal_ImageDepth;
+#ifdef HAVE_OPENNI2
 		boost::signals2::signal<Signal_PointCloud>* signal_PointCloud;
+		boost::signals2::signal<Signal_ImageDepth>* signal_ImageDepth;
+#endif
 
 	public:
 		ImageGrabberExt(const std::string& dir_,
 			float frames_per_second = 0,
 			bool repeat = false,
-			bool pclzf_mode_ = false) : ImageGrabber(dir_, frames_per_second, repeat, pclzf_mode_), dir(dir_), pclzf_mode(pclzf_mode_), 
-			signal_ImageDepth(nullptr), signal_PointCloud(nullptr)
+			bool pclzf_mode_ = false) : ImageGrabber(dir_, frames_per_second, repeat, pclzf_mode_), dir(dir_), pclzf_mode(pclzf_mode_)
+#ifdef HAVE_OPENNI2
+			, signal_ImageDepth(nullptr), signal_PointCloud(nullptr)
+#endif
 		{
+#ifdef HAVE_OPENNI2
 			boost::function<void(const boost::shared_ptr<const PointCloud<PointT> >&)> f_cloud =
 				boost::bind(&ImageGrabberExt<PointT>::GetImage, this, _1);
 			this->registerCallback(f_cloud);
 
 			signal_ImageDepth = createSignal<Signal_ImageDepth>();
 			signal_PointCloud = createSignal<Signal_PointCloud>();
+#endif
 		}
 
 		ImageGrabberExt(const std::string& depth_dir,
 			const std::string& rgb_dir,
 			float frames_per_second = 0,
-			bool repeat = false) : ImageGrabber(depth_dir, rgb_dir, frames_per_second, repeat), pclzf_mode(false),
-			signal_ImageDepth(nullptr), signal_PointCloud(nullptr)
+			bool repeat = false) : ImageGrabber(depth_dir, rgb_dir, frames_per_second, repeat), pclzf_mode(false)
+#ifdef HAVE_OPENNI2
+			, signal_ImageDepth(nullptr), signal_PointCloud(nullptr)
+#endif
 		{
 		}
 
 		ImageGrabberExt(const std::vector<std::string>& depth_image_files,
 			float frames_per_second = 0,
-			bool repeat = false) : ImageGrabber(depth_image_files, frames_per_second, repeat), pclzf_mode(false),
-			signal_ImageDepth(nullptr), signal_PointCloud(nullptr)
+			bool repeat = false) : ImageGrabber(depth_image_files, frames_per_second, repeat), pclzf_mode(false)
+#ifdef HAVE_OPENNI2
+			, signal_ImageDepth(nullptr), signal_PointCloud(nullptr)
+#endif
 		{
 		}
 
 		~ImageGrabberExt()
 		{
+#ifdef HAVE_OPENNI2
 			disconnect_all_slots<Signal_ImageDepth>();
 			disconnect_all_slots<Signal_PointCloud>();
+#endif
 		}
 
+#ifdef HAVE_OPENNI2
 		void GetImage(const boost::shared_ptr<const PointCloud<PointT> >&)
 		{
 			if (signal_ImageDepth->num_slots() > 0)
@@ -228,6 +247,7 @@ namespace pcl
 
 			return point_cloud;
 		}
+#endif
 
 	};
 }

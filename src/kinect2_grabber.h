@@ -73,9 +73,7 @@ namespace pcl
 			io::DepthImage::Ptr convertDepthImage(const std::vector<UINT16>& depthBuffer);
 			boost::shared_ptr<io::Image> color_image;
 			boost::shared_ptr<io::DepthImage> depth_image;
-			io::FrameWrapper::Ptr depth_frameWrapper, color_frameWrapper;
 			std::vector<unsigned char> converted_buffer;
-			boost::shared_ptr<OniFrame> oni_depth_frame, oni_color_frame;
 #endif
 #ifdef HAVE_OPENNI
 			boost::signals2::signal<signal_Kinect2_ImageDepthOni>* signal_ImageDepthOni;
@@ -380,7 +378,7 @@ namespace pcl
 			*convbuffer++ = cbuffer->rgbBlue;
 		}
 
-		oni_color_frame = boost::make_shared<OniFrame>();
+		OniFrame* oni_color_frame = new OniFrame();
 		oni_color_frame->data = (void*)&converted_buffer[0];
 		oni_color_frame->dataSize = converted_buffer.size();
 		oni_color_frame->height = colorHeight;
@@ -388,8 +386,8 @@ namespace pcl
 		oni_color_frame->stride = colorWidth * 3;
 
 		openni::VideoFrameRef frame;
-		frame._setFrame(oni_color_frame.get());
-		color_frameWrapper = boost::make_shared<io::openni2::Openni2FrameWrapper>(frame);
+		frame._setFrame(oni_color_frame);
+		io::FrameWrapper::Ptr color_frameWrapper = boost::make_shared<io::openni2::Openni2FrameWrapper>(frame);
 
 		color_image =
 			boost::make_shared<io::ImageRGB24>(color_frameWrapper);
@@ -399,7 +397,7 @@ namespace pcl
 
 	io::DepthImage::Ptr Kinect2Grabber::convertDepthImage(const std::vector<UINT16>& buffer)
 	{
-		oni_depth_frame = boost::make_shared<OniFrame>();
+		OniFrame* oni_depth_frame = new OniFrame();
 		oni_depth_frame->data = (void*)&buffer[0];
 		oni_depth_frame->dataSize = buffer.size()*sizeof(UINT16);
 		oni_depth_frame->height = depthHeight;
@@ -407,8 +405,8 @@ namespace pcl
 		oni_depth_frame->stride = depthWidth*sizeof(UINT16);
 		
 		openni::VideoFrameRef frame;
-		frame._setFrame(oni_depth_frame.get());
-		depth_frameWrapper = boost::make_shared<io::openni2::Openni2FrameWrapper>(frame);
+		frame._setFrame(oni_depth_frame);
+		io::FrameWrapper::Ptr depth_frameWrapper = boost::make_shared<io::openni2::Openni2FrameWrapper>(frame);
 
 		CameraIntrinsics intrinsics;
 		mapper->GetDepthCameraIntrinsics(&intrinsics);

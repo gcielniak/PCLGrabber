@@ -2,6 +2,8 @@
 #include <pcl/pcl_config.h>
 #include <pcl/exceptions.h>
 
+#undef HAVE_OPENNI2
+
 #ifdef _MSC_VER
 #define _CRT_SECURE_NO_WARNINGS
 #endif
@@ -72,7 +74,7 @@ namespace pcl
 				if (platform_type == ENSENSO_PLATFORM)
 					((EnsensoGrabber*)grabber)->closeDevice();
 #endif
-//				delete grabber;
+				delete grabber;
 			}
 		}
 
@@ -93,6 +95,11 @@ namespace pcl
 					{
 						cerr << " Device " << j << ": ";
 						cerr << device_manager.getDeviceByIndex(j)->getStringID() << endl;
+						cerr << "  depth FL: " << device_manager.getDeviceByIndex(j)->getDepthFocalLength() << endl;
+						cerr << "  color FL: " << device_manager.getDeviceByIndex(j)->getColorFocalLength() << endl;
+						cerr << "  IR FL: " << device_manager.getDeviceByIndex(j)->getIRFocalLength() << endl;
+						cerr << "  baseline: " << device_manager.getDeviceByIndex(j)->getBaseline() << endl;
+						cerr << "  depth reg: " << device_manager.getDeviceByIndex(j)->isDepthRegistered() << endl;
 					}
 				}
 #endif

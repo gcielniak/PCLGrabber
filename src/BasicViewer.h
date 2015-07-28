@@ -1,13 +1,18 @@
 #pragma once
+#include <vector>
 #include <pcl/point_cloud.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/visualization/image_viewer.h>
-#include <pcl/io/image_depth.h>
-#include <pcl/io/image.h>
-#include <pcl/io/openni_camera/openni_image.h>
-#include <pcl/io/openni_camera/openni_depth_image.h>
 #include <pcl/io/grabber.h>
 #include <pcl/common/time.h> //fps calculations
+#ifdef HAVE_OPENNI2
+#include <pcl/io/image_depth.h>
+#include <pcl/io/image.h>
+#endif
+#ifdef HAVE_OPENNI
+#include <pcl/io/openni_camera/openni_image.h>
+#include <pcl/io/openni_camera/openni_depth_image.h>
+#endif
 
 #define SHOW_FPS 1
 #if SHOW_FPS
@@ -93,7 +98,7 @@ namespace pcl
 			if (vis_cloud && grabber->providesCallback<void(const boost::shared_ptr<const PointCloud<PointT> >&)>())
 			{
 				visualizer = new visualization::PCLVisualizer("PCLGrabber: point cloud");
-				visualizer->setCameraPosition(0.0, -0.0, -4.0, 0.0, -1.0, 0.0);
+				visualizer->setCameraPosition(0.0, 1.0, -4.0, 0.0, 1.0, 0.0);
 
 				boost::function<void(const boost::shared_ptr<const PointCloud<PointT> >&)> f_viscloud =
 					boost::bind(&BasicViewer::cloud_cb_, this, _1);
@@ -175,7 +180,7 @@ namespace pcl
 					{
 						if (color_image->getEncoding() != io::Image::Encoding::RGB)
 						{
-							vector<unsigned char> rgb_buffer(color_image->getWidth()*color_image->getHeight() * 3);
+							std::vector<unsigned char> rgb_buffer(color_image->getWidth()*color_image->getHeight() * 3);
 							color_image->fillRGB(color_image->getWidth(), color_image->getHeight(), &rgb_buffer[0]);
 							color_viewer->showRGBImage(&rgb_buffer[0], color_image->getWidth(), color_image->getHeight());
 						}
@@ -197,7 +202,7 @@ namespace pcl
 					{
 						if (oni_color_image->getEncoding() != openni_wrapper::Image::Encoding::RGB)
 						{
-							vector<unsigned char> rgb_buffer(oni_color_image->getWidth()*oni_color_image->getHeight() * 3);
+							std::vector<unsigned char> rgb_buffer(oni_color_image->getWidth()*oni_color_image->getHeight() * 3);
 							oni_color_image->fillRGB(oni_color_image->getWidth(), oni_color_image->getHeight(), &rgb_buffer[0]);
 							color_viewer->showRGBImage(&rgb_buffer[0], oni_color_image->getWidth(), oni_color_image->getHeight());
 						}
