@@ -70,6 +70,7 @@ namespace pcl
 #ifdef HAVE_OPENNI2
 			boost::signals2::signal<signal_Kinect2_ImageDepth>* signal_ImageDepth;
 			io::Image::Ptr convertColorImage(const std::vector<RGBQUAD>& colorBuffer);
+			io::Image::Ptr convertColorImageReg(const std::vector<RGBQUAD>& colorBuffer);
 			io::DepthImage::Ptr convertDepthImage(const std::vector<UINT16>& depthBuffer);
 			boost::shared_ptr<io::Image> color_image;
 			boost::shared_ptr<io::DepthImage> depth_image;
@@ -114,6 +115,7 @@ namespace pcl
 			int depthWidth;
 			int depthHeight;
 			std::vector<UINT16> depthBuffer;
+			std::vector<UINT16> reg_depthBuffer;
 
 			vector<DepthSpacePoint> depth_space_points;
 			vector<CameraSpacePoint> camera_space_points;
@@ -354,7 +356,7 @@ namespace pcl
 				}
 #ifdef HAVE_OPENNI2
 				if (signal_ImageDepth->num_slots() > 0)
-					signal_ImageDepth->operator()(convertColorImage(colorBuffer), convertDepthImage(depthBuffer), 1.0);
+					signal_ImageDepth->operator()(convertColorImageReg(colorBuffer), convertDepthImage(depthBuffer), 1.0);
 #endif
 #ifdef HAVE_OPENNI
 				if (signal_ImageDepthOni->num_slots() > 0)
@@ -368,7 +370,7 @@ namespace pcl
 	io::Image::Ptr Kinect2Grabber::convertColorImage(const std::vector<RGBQUAD>& buffer)
 	{
 		//convert to rgb buffer
-		converted_buffer.resize(colorHeight*colorWidth*3);
+		converted_buffer.resize(colorHeight*colorWidth * 3);
 		const RGBQUAD* cbuffer = &buffer[0];
 		unsigned char* convbuffer = &converted_buffer[0];
 		for (unsigned int i = 0; i < buffer.size(); i++, cbuffer++)
@@ -384,6 +386,63 @@ namespace pcl
 		oni_color_frame->height = colorHeight;
 		oni_color_frame->width = colorWidth;
 		oni_color_frame->stride = colorWidth * 3;
+
+		openni::VideoFrameRef frame;
+		frame._setFrame(oni_color_frame);
+		io::FrameWrapper::Ptr color_frameWrapper = boost::make_shared<io::openni2::Openni2FrameWrapper>(frame);
+
+		color_image =
+			boost::make_shared<io::ImageRGB24>(color_frameWrapper);
+
+		return color_image;
+	}
+
+
+	io::Image::Ptr Kinect2Grabber::convertColorImageReg(const std::vector<RGBQUAD>& buffer)
+	{
+		int color_size = colorWidth*colorHeight;
+		int depth_size = depthWidth*depthHeight;
+
+		if (camera_space_points.size() != depth_size)
+			camera_space_points.resize(depth_size);
+
+		if (color_space_points.size() != depth_size)
+			color_space_points.resize(depth_size);
+
+		mapper->MapDepthFrameToCameraSpace(depth_size, &depthBuffer[0], camera_space_points.size(), &camera_space_points[0]);
+		mapper->MapDepthFrameToColorSpace(depth_size, &depthBuffer[0], color_space_points.size(), &color_space_points[0]);
+
+		converted_buffer.resize(depth_size * 3);
+
+		unsigned char* pt = &converted_buffer[0];
+		CameraSpacePoint* csp = &camera_space_points[0];
+		ColorSpacePoint* colsp = &color_space_points[0];
+
+		for (int i = 0; i < depth_size; i++, csp++, colsp++)
+		{
+			int color_ind = (int)(colsp->X + 0.5) + (int)(colsp->Y + 0.5)*colorWidth;
+
+			if ((color_ind >= 0) && (color_ind < color_size))
+			{
+				RGBQUAD* cp = &colorBuffer[color_ind];
+				*pt++ = cp->rgbRed;
+				*pt++ = cp->rgbGreen;
+				*pt++ = cp->rgbBlue;
+			}
+			else
+			{
+				*pt++ = 0;
+				*pt++ = 0;
+				*pt++ = 0;
+			}
+		}
+
+		OniFrame* oni_color_frame = new OniFrame();
+		oni_color_frame->data = (void*)&converted_buffer[0];
+		oni_color_frame->dataSize = converted_buffer.size();
+		oni_color_frame->height = depthHeight;
+		oni_color_frame->width = depthWidth;
+		oni_color_frame->stride = depthWidth * 3;
 
 		openni::VideoFrameRef frame;
 		frame._setFrame(oni_color_frame);
@@ -562,34 +621,25 @@ namespace pcl
 		cloud->height = static_cast<uint32_t>(depthHeight);
 		cloud->is_dense = false;
 
-		cloud->points.resize(cloud->height * cloud->width);
+		int color_size = colorWidth*colorHeight;
+		int cloud_size = depthWidth*depthHeight;
 
-		if (depth_space_points.size() != cloud->points.size())
-		{
-			depth_space_points.resize(cloud->points.size());
-			for (int y = 0, indx = 0; y < depthHeight; y++){
-				for (int x = 0; x < depthWidth; x++, indx++){
-					depth_space_points[indx].X = x;
-					depth_space_points[indx].Y = y;
-				}
-			}
-		}
+		cloud->points.resize(cloud_size);
 
-		if (camera_space_points.size() != depth_space_points.size())
-			camera_space_points.resize(depth_space_points.size());
+		if (camera_space_points.size() != cloud_size)
+			camera_space_points.resize(cloud_size);
 
-		if (color_space_points.size() != depth_space_points.size())
-			color_space_points.resize(depth_space_points.size());
+		if (color_space_points.size() != cloud_size)
+			color_space_points.resize(cloud_size);
 
-		mapper->MapDepthPointsToCameraSpace(depth_space_points.size(), &depth_space_points[0], depth_space_points.size(), depthBuffer, camera_space_points.size(), &camera_space_points[0]);
-		mapper->MapDepthPointsToColorSpace(depth_space_points.size(), &depth_space_points[0], depth_space_points.size(), depthBuffer, color_space_points.size(), &color_space_points[0]);
+		mapper->MapDepthFrameToCameraSpace(cloud_size, depthBuffer, camera_space_points.size(), &camera_space_points[0]);
+		mapper->MapDepthFrameToColorSpace(cloud_size, depthBuffer, color_space_points.size(), &color_space_points[0]);
 
 		PointXYZRGBA* pt = &cloud->points[0];
 		CameraSpacePoint* csp = &camera_space_points[0];
 		ColorSpacePoint* colsp = &color_space_points[0];
-		int color_size = colorWidth*colorHeight;
 
-		for (int i = 0; i < cloud->points.size(); i++, pt++, csp++, colsp++)
+		for (int i = 0; i < cloud_size; i++, pt++, csp++, colsp++)
 		{
 			int color_ind = (int)(colsp->X + 0.5) + (int)(colsp->Y + 0.5)*colorWidth;
 			
