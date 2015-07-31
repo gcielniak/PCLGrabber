@@ -20,11 +20,11 @@ do \
     double now = pcl::getTime (); \
     ++count; \
     if (now - last >= 1.0) \
-									    { \
+										    { \
       std::cout << "Average framerate("<< _WHAT_ << "): " << double(count)/double(now - last) << " Hz" <<  std::endl; \
       count = 0; \
       last = now; \
-									    } \
+										    } \
 }while(false)
 #else
 #define FPS_CALC(_WHAT_) \
@@ -89,16 +89,22 @@ namespace pcl
 			std::stringstream color_file_name;
 			std::stringstream xml_file_name;
 			depth_file_name << "frame_" << time_string << "_depth.pclzf";
-			color_file_name << "frame_" << time_string << "_rgb.pclzf";
 			xml_file_name << "frame_" << time_string << ".xml";
 
-			io::CameraParameters depth_parameters;
-			depth_parameters.focal_length_x = depth_parameters.focal_length_y = depth_image->getFocalLength();
-			depth_parameters.principal_point_x = (depth_image->getWidth() - 1.f) / 2.f;
-			depth_parameters.principal_point_y = (depth_image->getHeight() - 1.f) / 2.f;
-			depth_writer.writeParameters(depth_parameters, output_data_path + xml_file_name.str());
-
-			depth_writer.write(reinterpret_cast<const char*> (depth_image->getData()), depth_image->getWidth(), depth_image->getHeight(), output_data_path + depth_file_name.str());
+			if (depth_image != nullptr)
+			{
+				io::CameraParameters depth_parameters;
+				depth_parameters.focal_length_x = depth_parameters.focal_length_y = depth_image->getFocalLength();
+				depth_parameters.principal_point_x = (depth_image->getWidth() - 1.f) / 2.f;
+				depth_parameters.principal_point_y = (depth_image->getHeight() - 1.f) / 2.f;
+				depth_writer.writeParameters(depth_parameters, output_data_path + xml_file_name.str());
+				depth_writer.write(reinterpret_cast<const char*> (depth_image->getData()), depth_image->getWidth(), depth_image->getHeight(), output_data_path + depth_file_name.str());
+				color_file_name << "frame_" << time_string << "_rgb.pclzf";
+			}
+			else //only colour image available: must be in its original size
+			{
+				color_file_name << "frame_" << time_string << "_rgb_orig.pclzf";
+			}
 
 			if (color_image != nullptr)
 				color_writer.write(reinterpret_cast<const char*> (color_image->getData()), color_image->getWidth(), color_image->getHeight(), output_data_path + color_file_name.str());
@@ -148,16 +154,23 @@ namespace pcl
 			std::stringstream color_file_name;
 			std::stringstream xml_file_name;
 			depth_file_name << "frame_" << time_string << "_depth.png";
-			color_file_name << "frame_" << time_string << "_rgb.png";
 			xml_file_name << "frame_" << time_string << ".xml";
 
-			io::CameraParameters depth_parameters;
-			depth_parameters.focal_length_x = depth_parameters.focal_length_y = depth_image->getFocalLength();
-			depth_parameters.principal_point_x = (depth_image->getWidth() - 1.f) / 2.f;
-			depth_parameters.principal_point_y = (depth_image->getHeight() - 1.f) / 2.f;
-			depth_writer.writeParameters(depth_parameters, output_data_path + xml_file_name.str());
+			if (depth_image != nullptr)
+			{
+				io::CameraParameters depth_parameters;
+				depth_parameters.focal_length_x = depth_parameters.focal_length_y = depth_image->getFocalLength();
+				depth_parameters.principal_point_x = (depth_image->getWidth() - 1.f) / 2.f;
+				depth_parameters.principal_point_y = (depth_image->getHeight() - 1.f) / 2.f;
+				depth_writer.writeParameters(depth_parameters, output_data_path + xml_file_name.str());
+				io::saveShortPNGFile(output_data_path + depth_file_name.str(), depth_image->getData(), depth_image->getWidth(), depth_image->getHeight(), 1);
+				color_file_name << "frame_" << time_string << "_rgb.png";
+			}
+			else //only colour image available: must be in its original size
+			{
+				color_file_name << "frame_" << time_string << "_rgb_orig.png";
+			}
 
-			io::saveShortPNGFile(output_data_path + depth_file_name.str(), depth_image->getData(), depth_image->getWidth(), depth_image->getHeight(), 1);
 			if (color_image != nullptr)
 				io::saveRgbPNGFile(output_data_path + color_file_name.str(), reinterpret_cast<const unsigned char*> (color_image->getData()), color_image->getWidth(), color_image->getHeight());
 
@@ -212,6 +225,16 @@ namespace pcl
 				break;
 			default:
 				break;
+			}
+		}
+
+		void RegisterRGBCallbacks(Grabber* grabber)
+		{
+			if (grabber->providesCallback<void(const boost::shared_ptr<io::Image>&)>())
+			{
+				boost::function<void(const boost::shared_ptr<io::Image>&)> f_write;
+				f_write = boost::bind(&FileOutput::WriteImageLZF, this, _1, boost::shared_ptr<io::DepthImage>());
+				grabber->registerCallback(f_write);
 			}
 		}
 	};

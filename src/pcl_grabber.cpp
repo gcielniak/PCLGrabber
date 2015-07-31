@@ -72,12 +72,18 @@ int main(int argc, char **argv)
 		dir_name.insert(dir_name.length()-1, "_PCLZF");
 		writer.OutputDir(dir_name);
 		writer.RegisterCallbacks(grabber.GetGrabber());
-
+		/*
 		aux_writer.Format(1); //pcd
 		dir_name = aux_writer.OutputDir();
 		dir_name.insert(dir_name.length() - 1, "_PCD");
 		aux_writer.OutputDir(dir_name);
-		aux_writer.RegisterCallbacks(grabber.GetGrabber());
+		aux_writer.RegisterCallbacks(grabber.GetGrabber());*/
+
+		aux_writer.Format(0); //color
+		dir_name = aux_writer.OutputDir();
+		dir_name.insert(dir_name.length() - 1, "_RGB");
+		aux_writer.OutputDir(dir_name);
+		aux_writer.RegisterRGBCallbacks(grabber.GetGrabber());
 	}
 	else
 	{

@@ -54,6 +54,7 @@ namespace pcl
 			typedef void (signal_Kinect2_PointXYZRGB)(const boost::shared_ptr<const PointCloud<PointXYZRGB>>&);
 			typedef void (signal_Kinect2_PointXYZRGBA)(const boost::shared_ptr<const PointCloud<PointXYZRGBA>>&);
 #ifdef HAVE_OPENNI2
+			typedef void (signal_Kinect2_Image)(const boost::shared_ptr<io::Image>&);
 			typedef void (signal_Kinect2_ImageDepth)(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, float reciprocalFocalLength);
 #endif
 #ifdef HAVE_OPENNI
@@ -69,6 +70,7 @@ namespace pcl
 
 #ifdef HAVE_OPENNI2
 			boost::signals2::signal<signal_Kinect2_ImageDepth>* signal_ImageDepth;
+			boost::signals2::signal<signal_Kinect2_Image>* signal_Image;
 			io::Image::Ptr convertColorImage(const std::vector<RGBQUAD>& colorBuffer);
 			io::Image::Ptr convertColorImageReg(const std::vector<RGBQUAD>& colorBuffer);
 			io::DepthImage::Ptr convertDepthImage(const std::vector<UINT16>& depthBuffer);
@@ -223,6 +225,7 @@ namespace pcl
 		signal_PointXYZRGBA = createSignal<signal_Kinect2_PointXYZRGBA>();
 #ifdef HAVE_OPENNI2
 		signal_ImageDepth = createSignal<signal_Kinect2_ImageDepth>();
+		signal_Image = createSignal<signal_Kinect2_Image>();
 #endif
 #ifdef HAVE_OPENNI
 		signal_ImageDepthOni = createSignal<signal_Kinect2_ImageDepthOni>();
@@ -238,6 +241,7 @@ namespace pcl
 		disconnect_all_slots<signal_Kinect2_PointXYZRGBA>();
 #ifdef HAVE_OPENNI2
 		disconnect_all_slots<signal_Kinect2_ImageDepth>();
+		disconnect_all_slots<signal_Kinect2_Image>();
 #endif
 #ifdef HAVE_OPENNI
 		disconnect_all_slots<signal_Kinect2_ImageDepthOni>();
@@ -357,6 +361,8 @@ namespace pcl
 #ifdef HAVE_OPENNI2
 				if (signal_ImageDepth->num_slots() > 0)
 					signal_ImageDepth->operator()(convertColorImageReg(colorBuffer), convertDepthImage(depthBuffer), 1.0);
+				if (signal_Image->num_slots() > 0)
+					signal_Image->operator()(convertColorImage(colorBuffer));
 #endif
 #ifdef HAVE_OPENNI
 				if (signal_ImageDepthOni->num_slots() > 0)
