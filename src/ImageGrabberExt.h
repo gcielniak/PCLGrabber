@@ -1,5 +1,7 @@
 #pragma once
 #include <pcl/io/image_grabber.h>
+#include "ImageUtils.h"
+
 #ifdef HAVE_OPENNI2
 #include <pcl/io/openni2/openni2_metadata_wrapper.h>
 #endif
@@ -20,16 +22,7 @@ namespace pcl
 
 	protected:
 		string dir;
-		vector<unsigned char> color_data;
-		vector<unsigned short> depth_data;
-		vector<unsigned short> orig_data;
 		bool pclzf_mode;
-#ifdef HAVE_OPENNI2
-		OniFrame oni_depth_frame, oni_color_frame, oni_orig_frame;
-		boost::shared_ptr<io::DepthImage> depth_image;
-		boost::shared_ptr<io::Image> color_image, orig_image;
-		io::FrameWrapper::Ptr depth_frameWrapper, color_frameWrapper, orig_frameWrapper;
-#endif
 
 	protected:
 #ifdef HAVE_OPENNI2
@@ -115,38 +108,13 @@ namespace pcl
 			else
 				color_file_name += ".png";
 
-			pcl::io::LZFRGB24ImageReader rgb;
-			PointCloud<PointT> pcloud;
+			pcl::LZFRGB24ImageReaderExt rgb_reader;
 
-			rgb.read(color_file_name, pcloud);
+			io::Image::Ptr image;
 
-			color_data.resize(pcloud.height*pcloud.width * 3);
+			rgb_reader.read(color_file_name, image);
 
-			for (uint32_t j = 0; j < pcloud.height; j++)
-			{
-				for (uint32_t i = 0; i < pcloud.width; i++)
-				{
-					PointT p = pcloud.at(i, j);
-					color_data[(i + j*pcloud.width) * 3 + 0] = p.r;
-					color_data[(i + j*pcloud.width) * 3 + 1] = p.g;
-					color_data[(i + j*pcloud.width) * 3 + 2] = p.b;
-				}
-			}
-
-			oni_color_frame.data = (void*)&color_data[0];
-			oni_color_frame.dataSize = color_data.size();
-			oni_color_frame.height = pcloud.height;
-			oni_color_frame.width = pcloud.width;
-			oni_color_frame.stride = pcloud.width * 3;
-
-			openni::VideoFrameRef frame;
-			frame._setFrame(&oni_color_frame);
-			color_frameWrapper = boost::make_shared<io::openni2::Openni2FrameWrapper>(frame);
-
-			color_image =
-				boost::make_shared<io::ImageRGB24>(color_frameWrapper);
-
-			return color_image;
+			return image;
 		}
 
 		io::Image::Ptr ToRGB24OrigImage(const string& file_name)
@@ -158,38 +126,13 @@ namespace pcl
 			else
 				orig_file_name += ".png_";
 
-			pcl::io::LZFRGB24ImageReader rgb;
-			PointCloud<PointT> pcloud;
+			pcl::LZFRGB24ImageReaderExt rgb_reader;
 
-			rgb.read(orig_file_name, pcloud);
+			io::Image::Ptr image;
 
-			orig_data.resize(pcloud.height*pcloud.width * 3);
+			rgb_reader.read(orig_file_name, image);
 
-			for (uint32_t j = 0; j < pcloud.height; j++)
-			{
-				for (uint32_t i = 0; i < pcloud.width; i++)
-				{
-					PointT p = pcloud.at(i, j);
-					orig_data[(i + j*pcloud.width) * 3 + 0] = p.r;
-					orig_data[(i + j*pcloud.width) * 3 + 1] = p.g;
-					orig_data[(i + j*pcloud.width) * 3 + 2] = p.b;
-				}
-			}
-
-			oni_orig_frame.data = (void*)&orig_data[0];
-			oni_orig_frame.dataSize = orig_data.size();
-			oni_orig_frame.height = pcloud.height;
-			oni_orig_frame.width = pcloud.width;
-			oni_orig_frame.stride = pcloud.width * 3;
-
-			openni::VideoFrameRef frame;
-			frame._setFrame(&oni_orig_frame);
-			orig_frameWrapper = boost::make_shared<io::openni2::Openni2FrameWrapper>(frame);
-
-			orig_image =
-				boost::make_shared<io::ImageRGB24>(orig_frameWrapper);
-
-			return orig_image;
+			return image;
 		}
 
 		io::DepthImage::Ptr ToDepthImage(const string& file_name)
@@ -203,42 +146,13 @@ namespace pcl
 			string xml_file_name = file_name;
 			xml_file_name.replace(xml_file_name.end() - 6, xml_file_name.end(), ".xml");
 
-			pcl::io::LZFDepth16ImageReader depth;
-			PointCloud<PointT> pcloud;
+			pcl::LZFDepth16ImageReaderExt depth_reader;
 
-			depth.readParameters(xml_file_name);
-			depth.read(depth_file_name, pcloud);
+			io::DepthImage::Ptr image;
 
-			depth_data.resize(pcloud.height*pcloud.width);
+			depth_reader.read(depth_file_name, image);
 
-			for (uint32_t i = 0; i < pcloud.width; i++)
-			{
-				for (uint32_t j = 0; j < pcloud.height; j++)
-				{
-					PointT p = pcloud.at(i, j);
-					depth_data[i + j*pcloud.width] = p.z * 1000;
-				}
-			}
-
-			oni_depth_frame.data = (void*)&depth_data[0];
-			oni_depth_frame.dataSize = depth_data.size()*sizeof(unsigned short);
-			oni_depth_frame.height = pcloud.height;
-			oni_depth_frame.width = pcloud.width;
-			oni_depth_frame.stride = pcloud.width*sizeof(unsigned short);
-
-			openni::VideoFrameRef frame;
-			frame._setFrame(&oni_depth_frame);
-			depth_frameWrapper = boost::make_shared<io::openni2::Openni2FrameWrapper>(frame);
-
-			float focalLength = 0;
-			float baseline = 0;
-			pcl::uint64_t no_sample_value = 0;
-			pcl::uint64_t shadow_value = 0;
-
-			depth_image =
-				boost::make_shared<io::DepthImage>(depth_frameWrapper, baseline, focalLength, shadow_value, no_sample_value);
-
-			return depth_image;
+			return image;
 		}
 
 		boost::shared_ptr<io::CameraParameters> RGBCameraParameters(const string& file_name)
