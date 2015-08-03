@@ -25,7 +25,6 @@ void print_help()
 	cerr << "       0 - pclzf" << endl;
 	cerr << "       1 - pcd" << endl;
 	cerr << "       2 - png" << endl;
-	cerr << "       3 - pclzf + pcd" << endl;
 	cerr << "  -h : print this message" << endl;
 }
 
@@ -64,31 +63,7 @@ int main(int argc, char **argv)
 	grabber.Init();
 
 	viewer.RegisterCallbacks(grabber.GetGrabber());
-
-	if (writer.Format() == 3)
-	{
-		writer.Format(0); //pclzf
-		string dir_name = writer.OutputDir();
-		dir_name.insert(dir_name.length()-1, "_PCLZF");
-		writer.OutputDir(dir_name);
-		writer.RegisterCallbacks(grabber.GetGrabber());
-		/*
-		aux_writer.Format(1); //pcd
-		dir_name = aux_writer.OutputDir();
-		dir_name.insert(dir_name.length() - 1, "_PCD");
-		aux_writer.OutputDir(dir_name);
-		aux_writer.RegisterCallbacks(grabber.GetGrabber());*/
-
-		aux_writer.Format(0); //color
-		dir_name = aux_writer.OutputDir();
-		dir_name.insert(dir_name.length() - 1, "_RGB");
-		aux_writer.OutputDir(dir_name);
-		aux_writer.RegisterRGBCallbacks(grabber.GetGrabber());
-	}
-	else
-	{
-		writer.RegisterCallbacks(grabber.GetGrabber());
-	}
+	writer.RegisterCallbacks(grabber.GetGrabber());
 
 	grabber.Start();
 

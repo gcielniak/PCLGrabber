@@ -54,14 +54,15 @@ namespace pcl
 			typedef void (signal_Kinect2_PointXYZRGB)(const boost::shared_ptr<const PointCloud<PointXYZRGB>>&);
 			typedef void (signal_Kinect2_PointXYZRGBA)(const boost::shared_ptr<const PointCloud<PointXYZRGBA>>&);
 #ifdef HAVE_OPENNI2
-			typedef void (signal_Kinect2_Image)(const boost::shared_ptr<io::Image>&);
 			typedef void (signal_Kinect2_ImageDepth)(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, float reciprocalFocalLength);
+			typedef void (signal_Kinect2_ImageDepthImage)(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, const boost::shared_ptr<io::Image>&);
 #endif
 #ifdef HAVE_OPENNI
 			typedef void (signal_Kinect2_ImageDepthOni)(const boost::shared_ptr<openni_wrapper::Image>&, const boost::shared_ptr<openni_wrapper::DepthImage>&, float reciprocalFocalLength);
 #endif
 
 			void PrintCalib();
+			void UpdateMapping();
 
 	protected:
 			boost::signals2::signal<signal_Kinect2_PointXYZ>* signal_PointXYZ;
@@ -70,12 +71,13 @@ namespace pcl
 
 #ifdef HAVE_OPENNI2
 			boost::signals2::signal<signal_Kinect2_ImageDepth>* signal_ImageDepth;
-			boost::signals2::signal<signal_Kinect2_Image>* signal_Image;
+			boost::signals2::signal<signal_Kinect2_ImageDepthImage>* signal_ImageDepthImage;
 			io::Image::Ptr convertColorImage(const std::vector<RGBQUAD>& colorBuffer);
 			io::Image::Ptr convertColorImageReg(const std::vector<RGBQUAD>& colorBuffer);
 			io::DepthImage::Ptr convertDepthImage(const std::vector<UINT16>& depthBuffer);
 			boost::shared_ptr<io::Image> color_image;
 			boost::shared_ptr<io::DepthImage> depth_image;
+			std::vector<unsigned char> converted_reg_buffer;
 			std::vector<unsigned char> converted_buffer;
 #endif
 #ifdef HAVE_OPENNI
@@ -123,6 +125,7 @@ namespace pcl
 			vector<CameraSpacePoint> camera_space_points;
 			vector<ColorSpacePoint> color_space_points;
 			bool data_ready;
+			bool mapping_updated;
 	};
 
 	Kinect2Grabber::Kinect2Grabber()
@@ -225,7 +228,7 @@ namespace pcl
 		signal_PointXYZRGBA = createSignal<signal_Kinect2_PointXYZRGBA>();
 #ifdef HAVE_OPENNI2
 		signal_ImageDepth = createSignal<signal_Kinect2_ImageDepth>();
-		signal_Image = createSignal<signal_Kinect2_Image>();
+		signal_ImageDepthImage = createSignal<signal_Kinect2_ImageDepthImage>();
 #endif
 #ifdef HAVE_OPENNI
 		signal_ImageDepthOni = createSignal<signal_Kinect2_ImageDepthOni>();
@@ -241,7 +244,7 @@ namespace pcl
 		disconnect_all_slots<signal_Kinect2_PointXYZRGBA>();
 #ifdef HAVE_OPENNI2
 		disconnect_all_slots<signal_Kinect2_ImageDepth>();
-		disconnect_all_slots<signal_Kinect2_Image>();
+		disconnect_all_slots<signal_Kinect2_ImageDepthImage>();
 #endif
 #ifdef HAVE_OPENNI
 		disconnect_all_slots<signal_Kinect2_ImageDepthOni>();
@@ -347,7 +350,9 @@ namespace pcl
 
 			if (data_ready)//fire signals only if there is new depth data
 			{			
-				if( signal_PointXYZ->num_slots() > 0 ) {
+				mapping_updated = false;
+
+				if (signal_PointXYZ->num_slots() > 0) {
 					signal_PointXYZ->operator()( convertDepthToPointXYZ( &depthBuffer[0] ) );
 				}
 
@@ -361,8 +366,8 @@ namespace pcl
 #ifdef HAVE_OPENNI2
 				if (signal_ImageDepth->num_slots() > 0)
 					signal_ImageDepth->operator()(convertColorImageReg(colorBuffer), convertDepthImage(depthBuffer), 1.0);
-				if (signal_Image->num_slots() > 0)
-					signal_Image->operator()(convertColorImage(colorBuffer));
+				if (signal_ImageDepthImage->num_slots() > 0)
+					signal_ImageDepthImage->operator()(convertColorImageReg(colorBuffer), convertDepthImage(depthBuffer), convertColorImage(colorBuffer));
 #endif
 #ifdef HAVE_OPENNI
 				if (signal_ImageDepthOni->num_slots() > 0)
@@ -373,6 +378,25 @@ namespace pcl
 	}
 
 #ifdef HAVE_OPENNI2
+	void Kinect2Grabber::UpdateMapping()
+	{
+		if (mapping_updated)
+			return;
+
+		int depth_size = depthWidth*depthHeight;
+
+		if (camera_space_points.size() != depth_size)
+			camera_space_points.resize(depth_size);
+
+		if (color_space_points.size() != depth_size)
+			color_space_points.resize(depth_size);
+
+		mapper->MapDepthFrameToCameraSpace(depth_size, &depthBuffer[0], camera_space_points.size(), &camera_space_points[0]);
+		mapper->MapDepthFrameToColorSpace(depth_size, &depthBuffer[0], color_space_points.size(), &color_space_points[0]);
+
+		mapping_updated = true;
+	}
+
 	io::Image::Ptr Kinect2Grabber::convertColorImage(const std::vector<RGBQUAD>& buffer)
 	{
 		//convert to rgb buffer
@@ -403,24 +427,16 @@ namespace pcl
 		return color_image;
 	}
 
-
 	io::Image::Ptr Kinect2Grabber::convertColorImageReg(const std::vector<RGBQUAD>& buffer)
 	{
+		UpdateMapping();
+
 		int color_size = colorWidth*colorHeight;
 		int depth_size = depthWidth*depthHeight;
 
-		if (camera_space_points.size() != depth_size)
-			camera_space_points.resize(depth_size);
+		converted_reg_buffer.resize(depth_size * 3);
 
-		if (color_space_points.size() != depth_size)
-			color_space_points.resize(depth_size);
-
-		mapper->MapDepthFrameToCameraSpace(depth_size, &depthBuffer[0], camera_space_points.size(), &camera_space_points[0]);
-		mapper->MapDepthFrameToColorSpace(depth_size, &depthBuffer[0], color_space_points.size(), &color_space_points[0]);
-
-		converted_buffer.resize(depth_size * 3);
-
-		unsigned char* pt = &converted_buffer[0];
+		unsigned char* pt = &converted_reg_buffer[0];
 		CameraSpacePoint* csp = &camera_space_points[0];
 		ColorSpacePoint* colsp = &color_space_points[0];
 
@@ -444,8 +460,8 @@ namespace pcl
 		}
 
 		OniFrame* oni_color_frame = new OniFrame();
-		oni_color_frame->data = (void*)&converted_buffer[0];
-		oni_color_frame->dataSize = converted_buffer.size();
+		oni_color_frame->data = (void*)&converted_reg_buffer[0];
+		oni_color_frame->dataSize = converted_reg_buffer.size();
 		oni_color_frame->height = depthHeight;
 		oni_color_frame->width = depthWidth;
 		oni_color_frame->stride = depthWidth * 3;
@@ -529,13 +545,8 @@ namespace pcl
 		if (!intrinsics.FocalLengthX)
 			intrinsics.FocalLengthX = 364.82281494140625;
 
-		float focalLength = intrinsics.FocalLengthX;
-		float baseline = 52;
-		XnUInt64 shadow_value = 0;
-		XnUInt64 no_sample_value = 0;
-
 		depth_image_oni =
-			boost::make_shared<openni_wrapper::DepthImage>(depth_frameWrapperOni, baseline, focalLength, shadow_value, no_sample_value);
+			boost::make_shared<openni_wrapper::DepthImage>(depth_frameWrapperOni, 0.0, intrinsics.FocalLengthX, 0.0, 0.0);
 
 		return depth_image_oni;
 	}
@@ -621,25 +632,17 @@ namespace pcl
 
 	PointCloud<PointXYZRGBA>::Ptr Kinect2Grabber::convertRGBDepthToPointXYZRGBA(RGBQUAD* colorBuffer, UINT16* depthBuffer)
 	{
+		UpdateMapping();
+
+		int color_size = colorWidth*colorHeight;
+		int cloud_size = depthWidth*depthHeight;
+
 		PointCloud<PointXYZRGBA>::Ptr cloud(new PointCloud<PointXYZRGBA>());
 
 		cloud->width = static_cast<uint32_t>(depthWidth);
 		cloud->height = static_cast<uint32_t>(depthHeight);
 		cloud->is_dense = false;
-
-		int color_size = colorWidth*colorHeight;
-		int cloud_size = depthWidth*depthHeight;
-
 		cloud->points.resize(cloud_size);
-
-		if (camera_space_points.size() != cloud_size)
-			camera_space_points.resize(cloud_size);
-
-		if (color_space_points.size() != cloud_size)
-			color_space_points.resize(cloud_size);
-
-		mapper->MapDepthFrameToCameraSpace(cloud_size, depthBuffer, camera_space_points.size(), &camera_space_points[0]);
-		mapper->MapDepthFrameToColorSpace(cloud_size, depthBuffer, color_space_points.size(), &color_space_points[0]);
 
 		PointXYZRGBA* pt = &cloud->points[0];
 		CameraSpacePoint* csp = &camera_space_points[0];

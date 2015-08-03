@@ -15,24 +15,27 @@ namespace pcl
 #ifdef HAVE_OPENNI2
 		typedef void (Signal_PointCloud)(const boost::shared_ptr<const PointCloud<PointT> >&, bool fake);
 		typedef void (Signal_ImageDepth)(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, float reciprocalFocalLength);
+		typedef void (Signal_ImageDepthImage)(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, const boost::shared_ptr<io::Image>&);
 #endif
 
 	protected:
 		string dir;
 		vector<unsigned char> color_data;
 		vector<unsigned short> depth_data;
+		vector<unsigned short> orig_data;
 		bool pclzf_mode;
 #ifdef HAVE_OPENNI2
-		OniFrame oni_depth_frame, oni_color_frame;
+		OniFrame oni_depth_frame, oni_color_frame, oni_orig_frame;
 		boost::shared_ptr<io::DepthImage> depth_image;
-		boost::shared_ptr<io::Image> color_image;
-		io::FrameWrapper::Ptr depth_frameWrapper, color_frameWrapper;
+		boost::shared_ptr<io::Image> color_image, orig_image;
+		io::FrameWrapper::Ptr depth_frameWrapper, color_frameWrapper, orig_frameWrapper;
 #endif
 
 	protected:
 #ifdef HAVE_OPENNI2
 		boost::signals2::signal<Signal_PointCloud>* signal_PointCloud;
 		boost::signals2::signal<Signal_ImageDepth>* signal_ImageDepth;
+		boost::signals2::signal<Signal_ImageDepthImage>* signal_ImageDepthImage;
 #endif
 
 	public:
@@ -41,7 +44,7 @@ namespace pcl
 			bool repeat = false,
 			bool pclzf_mode_ = false) : ImageGrabber<PointT>(dir_, frames_per_second, repeat, pclzf_mode_), dir(dir_), pclzf_mode(pclzf_mode_)
 #ifdef HAVE_OPENNI2
-			, signal_ImageDepth(nullptr), signal_PointCloud(nullptr)
+			, signal_ImageDepth(nullptr), signal_PointCloud(nullptr), signal_ImageDepthImage(nullptr)
 #endif
 		{
 #ifdef HAVE_OPENNI2
@@ -50,6 +53,7 @@ namespace pcl
 			this->registerCallback(f_cloud);
 
 			signal_ImageDepth = createSignal<Signal_ImageDepth>();
+			//signal_ImageDepthImage = createSignal<Signal_ImageDepthImage>();
 			signal_PointCloud = createSignal<Signal_PointCloud>();
 #endif
 		}
@@ -59,7 +63,7 @@ namespace pcl
 			float frames_per_second = 0,
 			bool repeat = false) : ImageGrabber<PointT>(depth_dir, rgb_dir, frames_per_second, repeat), pclzf_mode(false)
 #ifdef HAVE_OPENNI2
-			, signal_ImageDepth(nullptr), signal_PointCloud(nullptr)
+			, signal_ImageDepth(nullptr), signal_PointCloud(nullptr), signal_ImageDepthImage(nullptr)
 #endif
 		{
 		}
@@ -68,7 +72,7 @@ namespace pcl
 			float frames_per_second = 0,
 			bool repeat = false) : ImageGrabber<PointT>(depth_image_files, frames_per_second, repeat), pclzf_mode(false)
 #ifdef HAVE_OPENNI2
-			, signal_ImageDepth(nullptr), signal_PointCloud(nullptr)
+			, signal_ImageDepth(nullptr), signal_PointCloud(nullptr), signal_ImageDepthImage(nullptr)
 #endif
 		{
 		}
@@ -77,6 +81,7 @@ namespace pcl
 		{
 #ifdef HAVE_OPENNI2
 			disconnect_all_slots<Signal_ImageDepth>();
+			disconnect_all_slots<Signal_ImageDepthImage>();
 			disconnect_all_slots<Signal_PointCloud>();
 #endif
 		}
@@ -88,6 +93,11 @@ namespace pcl
 			{
 				string file_name = dir + "\\" + this->getCurrentDepthFileName();
 				signal_ImageDepth->operator()(ToRGB24Image(file_name), ToDepthImage(file_name), 1.0);
+			}
+			if (signal_ImageDepthImage && signal_ImageDepthImage->num_slots() > 0)
+			{
+				string file_name = dir + "\\" + this->getCurrentDepthFileName();
+				signal_ImageDepthImage->operator()(ToRGB24Image(file_name), ToDepthImage(file_name), ToRGB24OrigImage(file_name));
 			}
 			if (signal_PointCloud->num_slots() > 0)
 			{
@@ -112,9 +122,9 @@ namespace pcl
 
 			color_data.resize(pcloud.height*pcloud.width * 3);
 
-			for (uint32_t i = 0; i < pcloud.width; i++)
+			for (uint32_t j = 0; j < pcloud.height; j++)
 			{
-				for (uint32_t j = 0; j < pcloud.height; j++)
+				for (uint32_t i = 0; i < pcloud.width; i++)
 				{
 					PointT p = pcloud.at(i, j);
 					color_data[(i + j*pcloud.width) * 3 + 0] = p.r;
@@ -139,6 +149,49 @@ namespace pcl
 			return color_image;
 		}
 
+		io::Image::Ptr ToRGB24OrigImage(const string& file_name)
+		{
+			string orig_file_name = file_name;
+			orig_file_name.replace(orig_file_name.end() - 5, orig_file_name.end(), "orig");
+			if (pclzf_mode)
+				orig_file_name += ".pclzf_";
+			else
+				orig_file_name += ".png_";
+
+			pcl::io::LZFRGB24ImageReader rgb;
+			PointCloud<PointT> pcloud;
+
+			rgb.read(orig_file_name, pcloud);
+
+			orig_data.resize(pcloud.height*pcloud.width * 3);
+
+			for (uint32_t j = 0; j < pcloud.height; j++)
+			{
+				for (uint32_t i = 0; i < pcloud.width; i++)
+				{
+					PointT p = pcloud.at(i, j);
+					orig_data[(i + j*pcloud.width) * 3 + 0] = p.r;
+					orig_data[(i + j*pcloud.width) * 3 + 1] = p.g;
+					orig_data[(i + j*pcloud.width) * 3 + 2] = p.b;
+				}
+			}
+
+			oni_orig_frame.data = (void*)&orig_data[0];
+			oni_orig_frame.dataSize = orig_data.size();
+			oni_orig_frame.height = pcloud.height;
+			oni_orig_frame.width = pcloud.width;
+			oni_orig_frame.stride = pcloud.width * 3;
+
+			openni::VideoFrameRef frame;
+			frame._setFrame(&oni_orig_frame);
+			orig_frameWrapper = boost::make_shared<io::openni2::Openni2FrameWrapper>(frame);
+
+			orig_image =
+				boost::make_shared<io::ImageRGB24>(orig_frameWrapper);
+
+			return orig_image;
+		}
+
 		io::DepthImage::Ptr ToDepthImage(const string& file_name)
 		{
 			string depth_file_name = file_name;
@@ -148,7 +201,7 @@ namespace pcl
 				depth_file_name += ".png";
 
 			string xml_file_name = file_name;
-			xml_file_name.replace(xml_file_name.end() - 6, xml_file_name.end(),".xml");
+			xml_file_name.replace(xml_file_name.end() - 6, xml_file_name.end(), ".xml");
 
 			pcl::io::LZFDepth16ImageReader depth;
 			PointCloud<PointT> pcloud;
@@ -163,7 +216,7 @@ namespace pcl
 				for (uint32_t j = 0; j < pcloud.height; j++)
 				{
 					PointT p = pcloud.at(i, j);
-					depth_data[i + j*pcloud.width] = p.z*1000;
+					depth_data[i + j*pcloud.width] = p.z * 1000;
 				}
 			}
 

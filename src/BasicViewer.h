@@ -108,7 +108,16 @@ namespace pcl
 			if (vis_images)
 			{
 #ifdef HAVE_OPENNI2
-				if (grabber->providesCallback<void(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, float flength)>())
+				if (grabber->providesCallback<void(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, const boost::shared_ptr<io::Image>&)>())
+				{
+					boost::function<void(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, const boost::shared_ptr<io::Image>&)> f_image =
+						boost::bind(&BasicViewer::image_cb_, this, _3, _2);
+					grabber->registerCallback(f_image);
+
+					color_viewer = new visualization::ImageViewer("PCLGrabber: color image");
+					depth_viewer = new visualization::ImageViewer("PCLGrabber: depth image");
+				}
+				else if (grabber->providesCallback<void(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, float flength)>())
 				{
 					boost::function<void(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, float flength)> f_image =
 						boost::bind(&BasicViewer::image_cb_, this, _1, _2);
