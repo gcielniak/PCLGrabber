@@ -57,7 +57,7 @@ namespace pcl
 			signal_ImageDepthImage = createSignal<Signal_ImageDepthImage>();
 #endif
 #ifdef HAVE_OPENNI
-			boost::function<void(boost::shared_ptr<const PointCloud<PointT> >&)> f_cloud_oni =
+			boost::function<void(const boost::shared_ptr<const PointCloud<PointT> >&)> f_cloud_oni =
 				boost::bind(&ImageGrabberExt<PointT>::GetImageOni, this, _1);
 			this->registerCallback(f_cloud_oni);
 

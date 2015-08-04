@@ -99,6 +99,7 @@ namespace pcl
 			{
 				visualizer = new visualization::PCLVisualizer("PCLGrabber: point cloud");
 				visualizer->setCameraPosition(0.0, 1.0, -4.0, 0.0, 1.0, 0.0);
+//				visualizer->setCameraPosition(0.0, 20.0, 0.0, 0.0, 0.0, 1.0);
 
 				boost::function<void(const boost::shared_ptr<const PointCloud<PointT> >&)> f_viscloud =
 					boost::bind(&BasicViewer::cloud_cb_, this, _1);
