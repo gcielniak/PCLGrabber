@@ -399,7 +399,7 @@ namespace pcl
 			*convbuffer++ = cbuffer->rgbBlue;
 		}
 
-		return ToImageRGB24(&orig_buffer[0], colorWidth, colorHeight);
+		return ToImageRGB24<io::Image>(&orig_buffer[0], colorWidth, colorHeight);
 	}
 
 	io::Image::Ptr Kinect2Grabber::convertColorImage(const std::vector<RGBQUAD>& buffer)
@@ -430,7 +430,7 @@ namespace pcl
 				pt += 3;
 		}
 
-		return ToImageRGB24(&color_buffer[0], depthWidth, depthHeight);
+		return ToImageRGB24<io::Image>(&color_buffer[0], depthWidth, depthHeight);
 	}
 
 	io::DepthImage::Ptr Kinect2Grabber::convertDepthImage(const std::vector<UINT16>& buffer)
@@ -442,7 +442,7 @@ namespace pcl
 		if (!intrinsics.FocalLengthX)
 			intrinsics.FocalLengthX = 364.82281494140625;
 
-		return ToDepthImage(&buffer[0], depthWidth, depthHeight, intrinsics.FocalLengthX);
+		return ToDepthImage<io::DepthImage>(&buffer[0], depthWidth, depthHeight, intrinsics.FocalLengthX);
 	}
 #endif
 
@@ -460,7 +460,7 @@ namespace pcl
 			*convbuffer++ = cbuffer->rgbBlue;
 		}
 
-		return ToImageRGB24Oni(&orig_buffer[0], colorWidth, colorHeight);
+		return ToImageRGB24<openni_wrapper::Image>(&orig_buffer[0], colorWidth, colorHeight);
 	}
 
 	openni_wrapper::Image::Ptr Kinect2Grabber::convertColorImageOni(const std::vector<RGBQUAD>& buffer)
@@ -476,7 +476,7 @@ namespace pcl
 			*convbuffer++ = cbuffer->rgbBlue;
 		}
 
-		return ToImageRGB24Oni(&color_buffer[0], colorWidth, colorHeight);
+		return ToImageRGB24<openni_wrapper::Image>(&color_buffer[0], colorWidth, colorHeight);
 	}
 
 	openni_wrapper::DepthImage::Ptr Kinect2Grabber::convertDepthImageOni(const std::vector<UINT16>& buffer)
@@ -488,7 +488,7 @@ namespace pcl
 		if (!intrinsics.FocalLengthX)
 			intrinsics.FocalLengthX = 364.82281494140625;
 
-		return ToDepthImageOni(&buffer[0], depthWidth, depthHeight, intrinsics.FocalLengthX);
+		return ToDepthImage<openni_wrapper::DepthImage>(&buffer[0], depthWidth, depthHeight, intrinsics.FocalLengthX);
 	}
 #endif
 

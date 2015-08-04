@@ -40,12 +40,20 @@ namespace pcl
 				}
 				else if (FilesInDir(dir, ".pclzf"))
 				{
-					grabber = new ImageGrabberExt<PointT>(file_name, frames_per_second, repeat, true);
+#ifdef HAVE_OPENNI2
+					grabber = new ImageGrabberExt<PointT, io::Image, io::DepthImage>(file_name, frames_per_second, repeat, true);
+#elif HAVE_OPENNI
+					grabber = new ImageGrabberExt<PointT, openni_wrapper::Image, openni_wrapper::DepthImage>(file_name, frames_per_second, repeat, true);
+#endif
 					return grabber;
 				}
 				else if (FilesInDir(dir, ".png"))
 				{
-					grabber = new ImageGrabberExt<PointT>(file_name, frames_per_second, repeat, false);
+#ifdef HAVE_OPENNI2
+					grabber = new ImageGrabberExt<PointT, io::Image, io::DepthImage>(file_name, frames_per_second, repeat, false);
+#elif HAVE_OPENNI
+					grabber = new ImageGrabberExt<PointT, openni_wrapper::Image, openni_wrapper::DepthImage>(file_name, frames_per_second, repeat, false);
+#endif
 					return grabber;
 				}
 				PCL_THROW_EXCEPTION(pcl::IOException, "No recognised files in the directory given!\n");

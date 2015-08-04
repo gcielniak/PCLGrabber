@@ -7,13 +7,25 @@
 #include <pcl/io/image.h>
 #include <pcl/io/image_depth.h>
 #include <pcl/io/openni2/openni2_metadata_wrapper.h>
+#endif
+
+#ifdef HAVE_OPENNI
+#include <pcl/io/openni_camera/image_metadata_wrapper.h>
+#include <pcl/io/openni_camera/openni_image_rgb24.h>
+#include <pcl/io/openni_camera/image_depth.h>
+#endif
 
 namespace pcl
 {
-	io::Image::Ptr ToImageRGB24(const unsigned char* buffer, int width, int height)
+	template < typename ImageT >
+	boost::shared_ptr<ImageT> ToImageRGB24(const unsigned char* buffer, int width, int height)
 	{
-		io::Image::Ptr image;
+	}
 
+#ifdef HAVE_OPENNI2
+	template <>
+	boost::shared_ptr<io::Image> ToImageRGB24<io::Image>(const unsigned char* buffer, int width, int height)
+	{
 		OniFrame *oni_frame = new OniFrame();
 		oni_frame->data = (void*)buffer;
 		oni_frame->dataSize = width * height * 3;
@@ -25,15 +37,31 @@ namespace pcl
 		frame._setFrame(oni_frame);
 		io::FrameWrapper::Ptr frame_wrapper = boost::make_shared<io::openni2::Openni2FrameWrapper>(frame);
 
-		image = boost::make_shared<io::ImageRGB24>(frame_wrapper);
+		return boost::make_shared<io::ImageRGB24>(frame_wrapper);
+	}
+#endif
 
-		return image;
+#ifdef HAVE_OPENNI
+	template <>
+	boost::shared_ptr<openni_wrapper::Image> ToImageRGB24<openni_wrapper::Image>(const unsigned char* buffer, int width, int height)
+	{
+		boost::shared_ptr< xn::ImageMetaData > frame_wrapper = boost::make_shared<xn::ImageMetaData>();
+
+		frame_wrapper->ReAdjust(width, height, XnPixelFormat::XN_PIXEL_FORMAT_RGB24, &buffer[0]);
+
+		return boost::make_shared<openni_wrapper::ImageRGB24>(frame_wrapper);
+	}
+#endif
+
+	template < typename ImageT >
+	boost::shared_ptr<ImageT> ToDepthImage(const unsigned short* buffer, int width, int height, float focal_length)
+	{
 	}
 
-	io::DepthImage::Ptr ToDepthImage(const unsigned short* buffer, int width, int height, float focal_length)
+#ifdef HAVE_OPENNI2
+	template <>
+	io::DepthImage::Ptr ToDepthImage<io::DepthImage>(const unsigned short* buffer, int width, int height, float focal_length)
 	{
-		io::DepthImage::Ptr image;
-
 		OniFrame *oni_frame = new OniFrame();
 		oni_frame->data = (void*)buffer;
 		oni_frame->dataSize = width * height * sizeof(unsigned short);
@@ -45,30 +73,13 @@ namespace pcl
 		frame._setFrame(oni_frame);
 		io::FrameWrapper::Ptr frame_wrapper = boost::make_shared<io::openni2::Openni2FrameWrapper>(frame);
 
-		image = boost::make_shared<io::DepthImage>(frame_wrapper, 0.0, focal_length, 0.0, 0.0);
-
-		return image;
+		return boost::make_shared<io::DepthImage>(frame_wrapper, 0.0, focal_length, 0.0, 0.0);
 	}
-}
 #endif
 
 #ifdef HAVE_OPENNI
-#include <pcl/io/openni_camera/image_metadata_wrapper.h>
-#include <pcl/io/openni_camera/openni_image_rgb24.h>
-#include <pcl/io/openni_camera/image_depth.h>
-
-namespace pcl
-{
-	openni_wrapper::Image::Ptr ToImageRGB24Oni(const unsigned char* buffer, int width, int height)
-	{
-		boost::shared_ptr< xn::ImageMetaData > frame_wrapper = boost::make_shared<xn::ImageMetaData>();
-
-		frame_wrapper->ReAdjust(width, height, XnPixelFormat::XN_PIXEL_FORMAT_RGB24, &buffer[0]);
-
-		return boost::make_shared<openni_wrapper::ImageRGB24>(frame_wrapper);
-	}
-
-	openni_wrapper::DepthImage::Ptr ToDepthImageOni(const unsigned short* buffer, int width, int height, float focal_length)
+	template <>
+	openni_wrapper::DepthImage::Ptr ToDepthImage<openni_wrapper::DepthImage>(const unsigned short* buffer, int width, int height, float focal_length)
 	{
 		boost::shared_ptr< xn::DepthMetaData > frame_wrapper = boost::make_shared<xn::DepthMetaData>();
 
@@ -76,6 +87,7 @@ namespace pcl
 
 		return boost::make_shared<openni_wrapper::DepthImage>(frame_wrapper, 0.0, focal_length, 0.0, 0.0);
 	}
-}
 #endif
+
+}
 
