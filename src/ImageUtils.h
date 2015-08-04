@@ -49,114 +49,33 @@ namespace pcl
 
 		return image;
 	}
-
-	class LZFRGB24ImageReaderExt : public io::LZFRGB24ImageReader
-	{
-	public:
-		/** Empty constructor */
-		LZFRGB24ImageReaderExt() : io::LZFRGB24ImageReader() {}
-
-		/** Empty destructor */
-		virtual ~LZFRGB24ImageReaderExt() {}
-
-		//////////////////////////////////////////////////////////////////////////////
-		bool read(const std::string &filename, io::Image::Ptr& image)
-		{
-			uint32_t uncompressed_size;
-			std::vector<char> compressed_data;
-			if (!loadImageBlob(filename, compressed_data, uncompressed_size))
-			{
-				PCL_ERROR("[pcl::io::LZFRGB24ImageReaderExt::read] Unable to read image data from %s.\n", filename.c_str());
-				return (false);
-			}
-
-			if (uncompressed_size != getWidth() * getHeight() * 3)
-			{
-				PCL_DEBUG("[pcl::io::LZFRGB24ImageReaderExt::read] Uncompressed data has wrong size (%u), while in fact it should be %u bytes. \n[pcl::io::LZFRGB24ImageReaderExt::read] Are you sure %s is a 24-bit RGB PCLZF file? Identifier says: %s\n", uncompressed_size, getWidth() * getHeight() * 3, filename.c_str(), getImageType().c_str());
-				return (false);
-			}
-
-			std::vector<char> uncompressed_data(uncompressed_size);
-			decompress(compressed_data, uncompressed_data);
-
-			if (uncompressed_data.empty())
-			{
-				PCL_ERROR("[pcl::io::LZFRGB24ImageReaderExt::read] Error uncompressing data stored in %s!\n", filename.c_str());
-				return (false);
-			}
-
-			register int rgb_idx = 0;
-			unsigned char *color_r = reinterpret_cast<unsigned char*> (&uncompressed_data[0]);
-			unsigned char *color_g = reinterpret_cast<unsigned char*> (&uncompressed_data[getWidth() * getHeight()]);
-			unsigned char *color_b = reinterpret_cast<unsigned char*> (&uncompressed_data[2 * getWidth() * getHeight()]);
-
-			int image_size = getWidth() * getHeight();
-
-			unsigned char* image_buffer = new unsigned char[image_size * 3];
-
-			for (unsigned int i = 0; i < image_size * 3; ++rgb_idx)
-			{
-				image_buffer[i++] = color_r[rgb_idx];
-				image_buffer[i++] = color_g[rgb_idx];
-				image_buffer[i++] = color_b[rgb_idx];
-			}
-
-			image = ToImageRGB24(image_buffer, getWidth(), getHeight());
-
-			return true;
-		}
-	};
-
-	class LZFDepth16ImageReaderExt : public io::LZFDepth16ImageReader
-	{
-	public:
-		/** Empty constructor */
-		LZFDepth16ImageReaderExt() : io::LZFDepth16ImageReader() {}
-
-		/** Empty destructor */
-		virtual ~LZFDepth16ImageReaderExt() {}
-
-		//////////////////////////////////////////////////////////////////////////////
-		bool read(const std::string &filename, io::DepthImage::Ptr& image)
-		{
-			uint32_t uncompressed_size;
-			std::vector<char> compressed_data;
-			if (!loadImageBlob(filename, compressed_data, uncompressed_size))
-			{
-				PCL_ERROR("[pcl::io::LZFDepth16ImageReaderExt::read] Unable to read image data from %s.\n", filename.c_str());
-				return (false);
-			}
-
-			if (uncompressed_size != getWidth() * getHeight() * 2)
-			{
-				PCL_DEBUG("[pcl::io::LZFDepth16ImageReaderExt::read] Uncompressed data has wrong size (%u), while in fact it should be %u bytes. \n[pcl::io::LZFDepth16ImageReaderExt::read] Are you sure %s is a 16-bit depth PCLZF file? Identifier says: %s\n", uncompressed_size, getWidth() * getHeight() * 2, filename.c_str(), getImageType().c_str());
-				return (false);
-			}
-
-			std::vector<char> uncompressed_data(uncompressed_size);
-			decompress(compressed_data, uncompressed_data);
-
-			if (uncompressed_data.empty())
-			{
-				PCL_ERROR("[pcl::io::LZFDepth16ImageReaderExt::read] Error uncompressing data stored in %s!\n", filename.c_str());
-				return (false);
-			}
-
-			unsigned short *depth_data = reinterpret_cast<unsigned short*> (&uncompressed_data[0]);
-
-			int image_size = getWidth() * getHeight();
-
-			unsigned short* image_buffer = new unsigned short[image_size];
-
-			for (unsigned int i = 0; i < image_size; i++)
-			{
-				image_buffer[i] = depth_data[i];
-			}
-
-			image = ToDepthImage(image_buffer, getWidth(), getHeight(), 0.0);
-
-			return true;
-		}
-	};
 }
 #endif
+
+#ifdef HAVE_OPENNI
+#include <pcl/io/openni_camera/image_metadata_wrapper.h>
+#include <pcl/io/openni_camera/openni_image_rgb24.h>
+#include <pcl/io/openni_camera/image_depth.h>
+
+namespace pcl
+{
+	openni_wrapper::Image::Ptr ToImageRGB24Oni(const unsigned char* buffer, int width, int height)
+	{
+		boost::shared_ptr< xn::ImageMetaData > frame_wrapper = boost::make_shared<xn::ImageMetaData>();
+
+		frame_wrapper->ReAdjust(width, height, XnPixelFormat::XN_PIXEL_FORMAT_RGB24, &buffer[0]);
+
+		return boost::make_shared<openni_wrapper::ImageRGB24>(frame_wrapper);
+	}
+
+	openni_wrapper::DepthImage::Ptr ToDepthImageOni(const unsigned short* buffer, int width, int height, float focal_length)
+	{
+		boost::shared_ptr< xn::DepthMetaData > frame_wrapper = boost::make_shared<xn::DepthMetaData>();
+
+		frame_wrapper->ReAdjust(width, height, (const XnDepthPixel*)&buffer[0]);
+
+		return boost::make_shared<openni_wrapper::DepthImage>(frame_wrapper, 0.0, focal_length, 0.0, 0.0);
+	}
+}
+#endif
+

@@ -21,6 +21,9 @@ namespace pcl
 
 		Grabber* GetGrabber(const string& file_name, float frames_per_second = 0, bool repeat = false)
 		{
+			if (grabber)
+				return grabber;
+
 			//first check if the file is a directory
 			boost::filesystem::path dir(file_name);
 

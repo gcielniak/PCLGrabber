@@ -12,16 +12,7 @@
 #include <pcl/io/grabber.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
-#ifdef HAVE_OPENNI2
-#include <pcl/io/openni2/openni2_metadata_wrapper.h>
-#include <pcl/io/image.h>
-#include <pcl/io/image_depth.h>
-#endif
-#ifdef HAVE_OPENNI
-#include <pcl/io/openni_camera/image_metadata_wrapper.h>
-#include <pcl/io/openni_camera/openni_image_rgb24.h>
-#include <pcl/io/openni_camera/image_depth.h>
-#endif
+#include "ImageUtils.h"
 
 namespace pcl
 {
@@ -54,11 +45,12 @@ namespace pcl
 			typedef void (signal_Kinect2_PointXYZRGB)(const boost::shared_ptr<const PointCloud<PointXYZRGB>>&);
 			typedef void (signal_Kinect2_PointXYZRGBA)(const boost::shared_ptr<const PointCloud<PointXYZRGBA>>&);
 #ifdef HAVE_OPENNI2
-			typedef void (signal_Kinect2_ImageDepth)(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, float reciprocalFocalLength);
-			typedef void (signal_Kinect2_ImageDepthImage)(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, const boost::shared_ptr<io::Image>&);
+			typedef void (signal_Kinect2_ImageDepth)(const io::Image::Ptr&, const io::DepthImage::Ptr&, float reciprocalFocalLength);
+			typedef void (signal_Kinect2_ImageDepthImage)(const io::Image::Ptr&, const io::DepthImage::Ptr&, const io::Image::Ptr&);
 #endif
 #ifdef HAVE_OPENNI
-			typedef void (signal_Kinect2_ImageDepthOni)(const boost::shared_ptr<openni_wrapper::Image>&, const boost::shared_ptr<openni_wrapper::DepthImage>&, float reciprocalFocalLength);
+			typedef void (signal_Kinect2_ImageDepthOni)(const openni_wrapper::Image::Ptr&, const openni_wrapper::DepthImage::Ptr&, float reciprocalFocalLength);
+			typedef void (signal_Kinect2_ImageDepthImageOni)(const openni_wrapper::Image::Ptr&, const openni_wrapper::DepthImage::Ptr&, const openni_wrapper::Image::Ptr&);
 #endif
 
 			void PrintCalib();
@@ -73,28 +65,22 @@ namespace pcl
 			boost::signals2::signal<signal_Kinect2_ImageDepth>* signal_ImageDepth;
 			boost::signals2::signal<signal_Kinect2_ImageDepthImage>* signal_ImageDepthImage;
 			io::Image::Ptr convertColorImage(const std::vector<RGBQUAD>& colorBuffer);
-			io::Image::Ptr convertColorImageReg(const std::vector<RGBQUAD>& colorBuffer);
+			io::Image::Ptr convertColorImageOrig(const std::vector<RGBQUAD>& colorBuffer);
 			io::DepthImage::Ptr convertDepthImage(const std::vector<UINT16>& depthBuffer);
-			boost::shared_ptr<io::Image> color_image;
-			boost::shared_ptr<io::DepthImage> depth_image;
-			std::vector<unsigned char> converted_reg_buffer;
-			std::vector<unsigned char> converted_buffer;
+			vector<unsigned char> color_buffer, orig_buffer;
+			vector<unsigned short> depth_buffer;
 #endif
 #ifdef HAVE_OPENNI
 			boost::signals2::signal<signal_Kinect2_ImageDepthOni>* signal_ImageDepthOni;
+			boost::signals2::signal<signal_Kinect2_ImageDepthImageOni>* signal_ImageDepthImageOni;
 			openni_wrapper::Image::Ptr convertColorImageOni(const std::vector<RGBQUAD>& colorBuffer);
+			openni_wrapper::Image::Ptr convertColorImageOrigOni(const std::vector<RGBQUAD>& colorBuffer);
 			openni_wrapper::DepthImage::Ptr convertDepthImageOni(const std::vector<UINT16>& depthBuffer);
-			boost::shared_ptr<openni_wrapper::Image> color_image_oni;
-			boost::shared_ptr<openni_wrapper::DepthImage> depth_image_oni;
-			boost::shared_ptr< xn::ImageMetaData > color_frameWrapperOni;
-			boost::shared_ptr< xn::DepthMetaData > depth_frameWrapperOni;
-			std::vector<unsigned char> converted_buffer_oni;
 #endif
 
 			PointCloud<PointXYZ>::Ptr convertDepthToPointXYZ( UINT16* depthBuffer );
 			PointCloud<PointXYZRGB>::Ptr convertRGBDepthToPointXYZRGB(RGBQUAD* colorBuffer, UINT16* depthBuffer);
 			PointCloud<PointXYZRGBA>::Ptr convertRGBDepthToPointXYZRGBA(RGBQUAD* colorBuffer, UINT16* depthBuffer);
-
 
 			boost::thread thread;
 			mutable boost::mutex mutex;
@@ -119,7 +105,6 @@ namespace pcl
 			int depthWidth;
 			int depthHeight;
 			std::vector<UINT16> depthBuffer;
-			std::vector<UINT16> reg_depthBuffer;
 
 			vector<DepthSpacePoint> depth_space_points;
 			vector<CameraSpacePoint> camera_space_points;
@@ -232,6 +217,7 @@ namespace pcl
 #endif
 #ifdef HAVE_OPENNI
 		signal_ImageDepthOni = createSignal<signal_Kinect2_ImageDepthOni>();
+		signal_ImageDepthImageOni = createSignal<signal_Kinect2_ImageDepthImageOni>();
 #endif
 	}
 
@@ -248,6 +234,7 @@ namespace pcl
 #endif
 #ifdef HAVE_OPENNI
 		disconnect_all_slots<signal_Kinect2_ImageDepthOni>();
+		disconnect_all_slots<signal_Kinect2_ImageDepthImageOni>();
 #endif
 
 		// End Processing
@@ -365,13 +352,15 @@ namespace pcl
 				}
 #ifdef HAVE_OPENNI2
 				if (signal_ImageDepth->num_slots() > 0)
-					signal_ImageDepth->operator()(convertColorImageReg(colorBuffer), convertDepthImage(depthBuffer), 1.0);
+					signal_ImageDepth->operator()(convertColorImage(colorBuffer), convertDepthImage(depthBuffer), 1.0);
 				if (signal_ImageDepthImage->num_slots() > 0)
-					signal_ImageDepthImage->operator()(convertColorImageReg(colorBuffer), convertDepthImage(depthBuffer), convertColorImage(colorBuffer));
+					signal_ImageDepthImage->operator()(convertColorImage(colorBuffer), convertDepthImage(depthBuffer), convertColorImageOrig(colorBuffer));
 #endif
 #ifdef HAVE_OPENNI
 				if (signal_ImageDepthOni->num_slots() > 0)
 					signal_ImageDepthOni->operator()(convertColorImageOni(colorBuffer), convertDepthImageOni(depthBuffer), 1.0);
+				if (signal_ImageDepthImageOni->num_slots() > 0)
+					signal_ImageDepthImageOni->operator()(convertColorImageOni(colorBuffer), convertDepthImageOni(depthBuffer), convertColorImageOrigOni(colorBuffer));
 #endif
 			}
 		}
@@ -397,12 +386,12 @@ namespace pcl
 		mapping_updated = true;
 	}
 
-	io::Image::Ptr Kinect2Grabber::convertColorImage(const std::vector<RGBQUAD>& buffer)
+	io::Image::Ptr Kinect2Grabber::convertColorImageOrig(const std::vector<RGBQUAD>& buffer)
 	{
 		//convert to rgb buffer
-		converted_buffer.resize(colorHeight*colorWidth * 3);
+		orig_buffer.resize(colorHeight*colorWidth * 3);
 		const RGBQUAD* cbuffer = &buffer[0];
-		unsigned char* convbuffer = &converted_buffer[0];
+		unsigned char* convbuffer = &orig_buffer[0];
 		for (unsigned int i = 0; i < buffer.size(); i++, cbuffer++)
 		{
 			*convbuffer++ = cbuffer->rgbRed;
@@ -410,33 +399,19 @@ namespace pcl
 			*convbuffer++ = cbuffer->rgbBlue;
 		}
 
-		OniFrame* oni_color_frame = new OniFrame();
-		oni_color_frame->data = (void*)&converted_buffer[0];
-		oni_color_frame->dataSize = converted_buffer.size();
-		oni_color_frame->height = colorHeight;
-		oni_color_frame->width = colorWidth;
-		oni_color_frame->stride = colorWidth * 3;
-
-		openni::VideoFrameRef frame;
-		frame._setFrame(oni_color_frame);
-		io::FrameWrapper::Ptr color_frameWrapper = boost::make_shared<io::openni2::Openni2FrameWrapper>(frame);
-
-		color_image =
-			boost::make_shared<io::ImageRGB24>(color_frameWrapper);
-
-		return color_image;
+		return ToImageRGB24(&orig_buffer[0], colorWidth, colorHeight);
 	}
 
-	io::Image::Ptr Kinect2Grabber::convertColorImageReg(const std::vector<RGBQUAD>& buffer)
+	io::Image::Ptr Kinect2Grabber::convertColorImage(const std::vector<RGBQUAD>& buffer)
 	{
 		UpdateMapping();
 
 		int color_size = colorWidth*colorHeight;
 		int depth_size = depthWidth*depthHeight;
 
-		converted_reg_buffer.resize(depth_size * 3);
+		color_buffer.resize(depth_size * 3, 0);
 
-		unsigned char* pt = &converted_reg_buffer[0];
+		unsigned char* pt = &color_buffer[0];
 		CameraSpacePoint* csp = &camera_space_points[0];
 		ColorSpacePoint* colsp = &color_space_points[0];
 
@@ -452,43 +427,14 @@ namespace pcl
 				*pt++ = cp->rgbBlue;
 			}
 			else
-			{
-				*pt++ = 0;
-				*pt++ = 0;
-				*pt++ = 0;
-			}
+				pt += 3;
 		}
 
-		OniFrame* oni_color_frame = new OniFrame();
-		oni_color_frame->data = (void*)&converted_reg_buffer[0];
-		oni_color_frame->dataSize = converted_reg_buffer.size();
-		oni_color_frame->height = depthHeight;
-		oni_color_frame->width = depthWidth;
-		oni_color_frame->stride = depthWidth * 3;
-
-		openni::VideoFrameRef frame;
-		frame._setFrame(oni_color_frame);
-		io::FrameWrapper::Ptr color_frameWrapper = boost::make_shared<io::openni2::Openni2FrameWrapper>(frame);
-
-		color_image =
-			boost::make_shared<io::ImageRGB24>(color_frameWrapper);
-
-		return color_image;
+		return ToImageRGB24(&color_buffer[0], depthWidth, depthHeight);
 	}
 
 	io::DepthImage::Ptr Kinect2Grabber::convertDepthImage(const std::vector<UINT16>& buffer)
 	{
-		OniFrame* oni_depth_frame = new OniFrame();
-		oni_depth_frame->data = (void*)&buffer[0];
-		oni_depth_frame->dataSize = buffer.size()*sizeof(UINT16);
-		oni_depth_frame->height = depthHeight;
-		oni_depth_frame->width = depthWidth;
-		oni_depth_frame->stride = depthWidth*sizeof(UINT16);
-		
-		openni::VideoFrameRef frame;
-		frame._setFrame(oni_depth_frame);
-		io::FrameWrapper::Ptr depth_frameWrapper = boost::make_shared<io::openni2::Openni2FrameWrapper>(frame);
-
 		CameraIntrinsics intrinsics;
 		mapper->GetDepthCameraIntrinsics(&intrinsics);
 
@@ -496,27 +442,17 @@ namespace pcl
 		if (!intrinsics.FocalLengthX)
 			intrinsics.FocalLengthX = 364.82281494140625;
 
-		float focalLength = intrinsics.FocalLengthX;
-		float baseline = 52;
-		uint64_t no_sample_value = 0;
-		uint64_t shadow_value = 0;
-
-		depth_image =
-			boost::make_shared<io::DepthImage>(depth_frameWrapper, baseline, focalLength, shadow_value, no_sample_value);
-
-		return depth_image;
+		return ToDepthImage(&buffer[0], depthWidth, depthHeight, intrinsics.FocalLengthX);
 	}
 #endif
 
 #ifdef HAVE_OPENNI
-	openni_wrapper::Image::Ptr Kinect2Grabber::convertColorImageOni(const std::vector<RGBQUAD>& buffer)
+	openni_wrapper::Image::Ptr Kinect2Grabber::convertColorImageOrigOni(const std::vector<RGBQUAD>& buffer)
 	{
-		color_frameWrapperOni = boost::make_shared<xn::ImageMetaData>();
-
 		//convert to rgb buffer
-		converted_buffer_oni.resize(colorHeight*colorWidth * 3);
+		orig_buffer.resize(colorHeight*colorWidth * 3);
 		const RGBQUAD* cbuffer = &buffer[0];
-		unsigned char* convbuffer = &converted_buffer_oni[0];
+		unsigned char* convbuffer = &orig_buffer[0];
 		for (unsigned int i = 0; i < buffer.size(); i++, cbuffer++)
 		{
 			*convbuffer++ = cbuffer->rgbRed;
@@ -524,20 +460,27 @@ namespace pcl
 			*convbuffer++ = cbuffer->rgbBlue;
 		}
 
-		color_frameWrapperOni->ReAdjust(colorWidth, colorHeight, XnPixelFormat::XN_PIXEL_FORMAT_RGB24, &converted_buffer_oni[0]);
+		return ToImageRGB24Oni(&orig_buffer[0], colorWidth, colorHeight);
+	}
 
-		color_image_oni =
-			boost::make_shared<openni_wrapper::ImageRGB24>(color_frameWrapperOni);
+	openni_wrapper::Image::Ptr Kinect2Grabber::convertColorImageOni(const std::vector<RGBQUAD>& buffer)
+	{
+		//convert to rgb buffer
+		color_buffer.resize(colorHeight*colorWidth * 3);
+		const RGBQUAD* cbuffer = &buffer[0];
+		unsigned char* convbuffer = &color_buffer[0];
+		for (unsigned int i = 0; i < buffer.size(); i++, cbuffer++)
+		{
+			*convbuffer++ = cbuffer->rgbRed;
+			*convbuffer++ = cbuffer->rgbGreen;
+			*convbuffer++ = cbuffer->rgbBlue;
+		}
 
-		return color_image_oni;
+		return ToImageRGB24Oni(&color_buffer[0], colorWidth, colorHeight);
 	}
 
 	openni_wrapper::DepthImage::Ptr Kinect2Grabber::convertDepthImageOni(const std::vector<UINT16>& buffer)
 	{
-		depth_frameWrapperOni = boost::make_shared<xn::DepthMetaData>();
-
-		depth_frameWrapperOni->ReAdjust(depthWidth, depthHeight, (const XnDepthPixel*)&buffer[0]);
-
 		CameraIntrinsics intrinsics;
 		mapper->GetDepthCameraIntrinsics(&intrinsics);
 
@@ -545,10 +488,7 @@ namespace pcl
 		if (!intrinsics.FocalLengthX)
 			intrinsics.FocalLengthX = 364.82281494140625;
 
-		depth_image_oni =
-			boost::make_shared<openni_wrapper::DepthImage>(depth_frameWrapperOni, 0.0, intrinsics.FocalLengthX, 0.0, 0.0);
-
-		return depth_image_oni;
+		return ToDepthImageOni(&buffer[0], depthWidth, depthHeight, intrinsics.FocalLengthX);
 	}
 #endif
 
