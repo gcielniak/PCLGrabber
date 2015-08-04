@@ -2,36 +2,11 @@
 #include <pcl/visualization/boost.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/io/lzf_image_io.h>
-#include <pcl/io/image_depth.h>
-#include <pcl/io/image.h>
 #include <pcl/io/png_io.h>
 #include <string>
 #include <sstream>
 #include <typeinfo>
-#include <pcl/common/time.h> //fps calculations
-
-#define SHOW_FPS 1
-#if SHOW_FPS
-#define FPS_CALC(_WHAT_) \
-do \
-{ \
-    static unsigned count = 0;\
-    static double last = pcl::getTime ();\
-    double now = pcl::getTime (); \
-    ++count; \
-    if (now - last >= 1.0) \
-										    { \
-      std::cout << "Average framerate("<< _WHAT_ << "): " << double(count)/double(now - last) << " Hz" <<  std::endl; \
-      count = 0; \
-      last = now; \
-										    } \
-}while(false)
-#else
-#define FPS_CALC(_WHAT_) \
-do \
-{ \
-}while(false)
-#endif
+#include "ImageUtils.h"
 
 namespace pcl
 {
@@ -46,7 +21,7 @@ namespace pcl
 		return ss.str();
 	}
 
-	template <typename PointT>
+	template <typename PointT, typename ImageT, typename DepthImageT>
 	class FileOutput
 	{
 		int image_counter, format;
@@ -61,7 +36,7 @@ namespace pcl
 		string OutputDir() { return output_data_path; }
 		void OutputDir(const string new_path) { output_data_path = new_path; }
 
-		void WriteCloudPCD(const boost::shared_ptr<const PointCloud<PointT> >& cloud)
+		void WritePCD(const boost::shared_ptr<const PointCloud<PointT> >& cloud)
 		{
 			string timestamp = boost::posix_time::to_iso_string(boost::posix_time::microsec_clock::universal_time());
 
@@ -75,7 +50,7 @@ namespace pcl
 			FPS_CALC("WRITE PCD");
 		}
 
-		void WriteImageLZF(const boost::shared_ptr<io::Image>& color_image, const boost::shared_ptr<io::DepthImage>& depth_image, const boost::shared_ptr<io::Image>& orig_image)
+		void WriteImage(const boost::shared_ptr<ImageT>& color_image, const boost::shared_ptr<DepthImageT>& depth_image, const boost::shared_ptr<ImageT>& orig_image, bool pclzf_on)
 		{
 			io::LZFDepth16ImageWriter depth_writer;
 			io::LZFRGB24ImageWriter color_writer;
@@ -89,9 +64,19 @@ namespace pcl
 			std::stringstream color_file_name;
 			std::stringstream orig_file_name;
 			std::stringstream xml_file_name;
-			depth_file_name << "frame_" << time_string << "_depth.pclzf";
-			color_file_name << "frame_" << time_string << "_rgb.pclzf";
-			orig_file_name << "frame_" << time_string << "_orig.pclzf_";
+			if (pclzf_on)
+			{
+				depth_file_name << "frame_" << time_string << "_depth.pclzf";
+				color_file_name << "frame_" << time_string << "_rgb.pclzf";
+				orig_file_name << "frame_" << time_string << "_orig.pclzf_";
+			}
+			else
+			{
+				depth_file_name << "frame_" << time_string << "_depth.png";
+				color_file_name << "frame_" << time_string << "_rgb.png";
+				orig_file_name << "frame_" << time_string << "_orig.png_";
+			}
+
 			xml_file_name << "frame_" << time_string << ".xml";
 
 			if (depth_image != nullptr)
@@ -101,80 +86,29 @@ namespace pcl
 				depth_parameters.principal_point_x = (depth_image->getWidth() - 1.f) / 2.f;
 				depth_parameters.principal_point_y = (depth_image->getHeight() - 1.f) / 2.f;
 				depth_writer.writeParameters(depth_parameters, output_data_path + xml_file_name.str());
-				depth_writer.write(reinterpret_cast<const char*> (depth_image->getData()), depth_image->getWidth(), depth_image->getHeight(), output_data_path + depth_file_name.str());
+
+				if (pclzf_on)
+					depth_writer.write((const char*)GetDepthBuffer(depth_image), depth_image->getWidth(), depth_image->getHeight(), output_data_path + depth_file_name.str());
+				else
+					io::saveShortPNGFile(output_data_path + depth_file_name.str(), GetDepthBuffer(depth_image), depth_image->getWidth(), depth_image->getHeight(), 1);
 			}
 
 			if (color_image != nullptr)
-				color_writer.write(reinterpret_cast<const char*> (color_image->getData()), color_image->getWidth(), color_image->getHeight(), output_data_path + color_file_name.str());
-			if (orig_image != nullptr)
-				color_writer.write(reinterpret_cast<const char*> (orig_image->getData()), orig_image->getWidth(), orig_image->getHeight(), output_data_path + orig_file_name.str());
-
-			FPS_CALC("WRITE PCLZF");
-		}
-
-		void WriteOniImageLZF(const boost::shared_ptr<openni_wrapper::Image>& color_image, const boost::shared_ptr<openni_wrapper::DepthImage>& depth_image)
-		{
-			io::LZFDepth16ImageWriter depth_writer;
-			io::LZFRGB24ImageWriter color_writer;
-
-			string time_string = boost::posix_time::to_iso_string(boost::posix_time::microsec_clock::universal_time());
-
-			if (!boost::filesystem::exists(boost::filesystem::path(output_data_path)))
-				boost::filesystem::create_directories(boost::filesystem::path(output_data_path));
-
-			std::stringstream depth_file_name;
-			std::stringstream color_file_name;
-			std::stringstream xml_file_name;
-			depth_file_name << "frame_" << time_string << "_depth.pclzf";
-			color_file_name << "frame_" << time_string << "_rgb.pclzf";
-			xml_file_name << "frame_" << time_string << ".xml";
-
-			io::CameraParameters depth_parameters;
-			depth_parameters.focal_length_x = depth_parameters.focal_length_y = depth_image->getFocalLength();
-			depth_parameters.principal_point_x = (depth_image->getWidth() - 1.f) / 2.f;
-			depth_parameters.principal_point_y = (depth_image->getHeight() - 1.f) / 2.f;
-			depth_writer.writeParameters(depth_parameters, output_data_path + xml_file_name.str());
-
-			depth_writer.write(reinterpret_cast<const char*> (depth_image->getDepthMetaData().Data()), depth_image->getWidth(), depth_image->getHeight(), output_data_path + depth_file_name.str());
-			if (color_image != nullptr)
-				color_writer.write(reinterpret_cast<const char*> (color_image->getMetaData().Data()), color_image->getWidth(), color_image->getHeight(), output_data_path + color_file_name.str());
-		}
-
-		void WriteImagePNG(const boost::shared_ptr<io::Image>& color_image, const boost::shared_ptr<io::DepthImage>& depth_image, const boost::shared_ptr<io::Image>& orig_image)
-		{
-			io::LZFDepth16ImageWriter depth_writer;
-			io::LZFRGB24ImageWriter color_writer;
-
-			string time_string = boost::posix_time::to_iso_string(boost::posix_time::microsec_clock::universal_time());
-
-			if (!boost::filesystem::exists(boost::filesystem::path(output_data_path)))
-				boost::filesystem::create_directories(boost::filesystem::path(output_data_path));
-
-			std::stringstream depth_file_name;
-			std::stringstream color_file_name;
-			std::stringstream orig_file_name;
-			std::stringstream xml_file_name;
-			depth_file_name << "frame_" << time_string << "_depth.png";
-			color_file_name << "frame_" << time_string << "_rgb.png";
-			orig_file_name << "frame_" << time_string << "_orig.png_";
-			xml_file_name << "frame_" << time_string << ".xml";
-
-			if (depth_image != nullptr)
 			{
-				io::CameraParameters depth_parameters;
-				depth_parameters.focal_length_x = depth_parameters.focal_length_y = depth_image->getFocalLength();
-				depth_parameters.principal_point_x = (depth_image->getWidth() - 1.f) / 2.f;
-				depth_parameters.principal_point_y = (depth_image->getHeight() - 1.f) / 2.f;
-				depth_writer.writeParameters(depth_parameters, output_data_path + xml_file_name.str());
-				io::saveShortPNGFile(output_data_path + depth_file_name.str(), depth_image->getData(), depth_image->getWidth(), depth_image->getHeight(), 1);
+				if (pclzf_on)
+					color_writer.write((const char*)GetRGBBuffer(color_image), color_image->getWidth(), color_image->getHeight(), output_data_path + color_file_name.str());
+				else
+					io::saveRgbPNGFile(output_data_path + color_file_name.str(), GetRGBBuffer(color_image), color_image->getWidth(), color_image->getHeight());
+			}
+			if (orig_image != nullptr)
+			{
+				if (pclzf_on)
+					color_writer.write((const char*)GetRGBBuffer(orig_image), orig_image->getWidth(), orig_image->getHeight(), output_data_path + orig_file_name.str());
+				else
+					io::saveRgbPNGFile(output_data_path + orig_file_name.str(), GetRGBBuffer(orig_image), orig_image->getWidth(), orig_image->getHeight());
 			}
 
-			if (color_image != nullptr)
-				io::saveRgbPNGFile(output_data_path + color_file_name.str(), reinterpret_cast<const unsigned char*> (color_image->getData()), color_image->getWidth(), color_image->getHeight());
-			if (orig_image != nullptr)
-				io::saveRgbPNGFile(output_data_path + orig_file_name.str(), reinterpret_cast<const unsigned char*> (orig_image->getData()), orig_image->getWidth(), orig_image->getHeight());
-
-			FPS_CALC("WRITE PNG");
+			FPS_CALC("WRITE IMAGE");
 		}
 
 		void RegisterCallbacks(Grabber* grabber)
@@ -183,22 +117,16 @@ namespace pcl
 			{
 			case 0:
 			{
-				if (grabber->providesCallback<void(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, const boost::shared_ptr<io::Image>&)>())
+				if (grabber->providesCallback<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthImageT>&, const boost::shared_ptr<ImageT>&)>())
 				{
-					boost::function<void(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, const boost::shared_ptr<io::Image>&)> f_image =
-						boost::bind(&FileOutput::WriteImageLZF, this, _1, _2, _3);
+					boost::function<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthImageT>&, const boost::shared_ptr<ImageT>&)> f_image =
+						boost::bind(&FileOutput::WriteImage, this, _1, _2, _3, true);
 					grabber->registerCallback(f_image);
 				}
-				else if (grabber->providesCallback<void(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, float flength)>())
+				else if (grabber->providesCallback<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthImageT>&, float flength)>())
 				{
-					boost::function<void(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, const boost::shared_ptr<io::Image>&)> f_write =
-						boost::bind(&FileOutput::WriteImageLZF, this, _1, _2, boost::shared_ptr<io::Image>());
-					grabber->registerCallback(f_write);
-				}
-				else if (grabber->providesCallback<void(const boost::shared_ptr<openni_wrapper::Image>&, const boost::shared_ptr<openni_wrapper::DepthImage>&, float flength)>())
-				{
-					boost::function<void(const boost::shared_ptr<openni_wrapper::Image>&, const boost::shared_ptr<openni_wrapper::DepthImage>&, float flength)> f_write =
-						f_write = boost::bind(&FileOutput::WriteOniImageLZF, this, _1, _2);
+					boost::function<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthImageT>&, const boost::shared_ptr<ImageT>&)> f_write =
+						boost::bind(&FileOutput::WriteImage, this, _1, _2, boost::shared_ptr<io::Image>(), true);
 					grabber->registerCallback(f_write);
 				}
 			}
@@ -206,22 +134,22 @@ namespace pcl
 			case 1:
 			{
 				boost::function<void(const boost::shared_ptr<const PointCloud<PointT> >&)> f_write =
-					boost::bind(&FileOutput::WriteCloudPCD, this, _1);
+					boost::bind(&FileOutput::WritePCD, this, _1);
 				grabber->registerCallback(f_write);
 			}
 				break;
 			case 2:
 			{
-				if (grabber->providesCallback<void(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, const boost::shared_ptr<io::Image>&)>())
+				if (grabber->providesCallback<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthImageT>&, const boost::shared_ptr<ImageT>&)>())
 				{
-					boost::function<void(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, const boost::shared_ptr<io::Image>&)> f_write =
-						boost::bind(&FileOutput::WriteImagePNG, this, _1, _2, _3);
-					grabber->registerCallback(f_write);
+					boost::function<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthImageT>&, const boost::shared_ptr<ImageT>&)> f_image =
+						boost::bind(&FileOutput::WriteImage, this, _1, _2, _3, false);
+					grabber->registerCallback(f_image);
 				}
-				else if (grabber->providesCallback<void(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, const boost::shared_ptr<io::Image>&)>())
+				else if (grabber->providesCallback<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthImageT>&, float flength)>())
 				{
-					boost::function<void(const boost::shared_ptr<io::Image>&, const boost::shared_ptr<io::DepthImage>&, const boost::shared_ptr<io::Image>&)> f_write =
-						boost::bind(&FileOutput::WriteImagePNG, this, _1, _2, boost::shared_ptr<io::Image>());
+					boost::function<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthImageT>&, const boost::shared_ptr<ImageT>&)> f_write =
+						boost::bind(&FileOutput::WriteImage, this, _1, _2, boost::shared_ptr<io::Image>(), false);
 					grabber->registerCallback(f_write);
 				}
 			}

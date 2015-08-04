@@ -2,9 +2,11 @@
 
 #include <pcl/io/lzf_image_io.h>
 #include <pcl/console/print.h>
+#include <boost/make_shared.hpp>
+#include <pcl/common/time.h> //fps calculations
 
 #ifdef HAVE_OPENNI2
-#include <pcl/io/image.h>
+#include <pcl/io/image_rgb24.h>
 #include <pcl/io/image_depth.h>
 #include <pcl/io/openni2/openni2_metadata_wrapper.h>
 #endif
@@ -12,7 +14,7 @@
 #ifdef HAVE_OPENNI
 #include <pcl/io/openni_camera/image_metadata_wrapper.h>
 #include <pcl/io/openni_camera/openni_image_rgb24.h>
-#include <pcl/io/openni_camera/image_depth.h>
+#include <pcl/io/openni_camera/openni_depth_image.h>
 #endif
 
 namespace pcl
@@ -88,6 +90,77 @@ namespace pcl
 		return boost::make_shared<openni_wrapper::DepthImage>(frame_wrapper, 0.0, focal_length, 0.0, 0.0);
 	}
 #endif
+
+	template < typename ImageT >
+	unsigned char* GetRGBBuffer(const boost::shared_ptr<ImageT>&)
+	{
+	}
+
+#ifdef HAVE_OPENNI2
+	template <>
+	unsigned char* GetRGBBuffer(const boost::shared_ptr<io::Image>& image)
+	{
+		if (image->getEncoding() != io::Image::RGB)
+		{
+			unsigned char* buffer = new unsigned char[image->getWidth()*image->getHeight() * 3];
+			image->fillRGB(image->getWidth(), image->getHeight(), buffer);
+			return buffer;
+		}
+		else
+			return (unsigned char*)image->getData();
+	}
+#endif
+
+#ifdef HAVE_OPENNI
+	template <>
+	unsigned char* GetRGBBuffer(const boost::shared_ptr<openni_wrapper::Image>& image)
+	{
+		if (image->getEncoding() != openni_wrapper::Image::RGB)
+		{
+			unsigned char* buffer = new unsigned char[image->getWidth()*image->getHeight() * 3];
+			image->fillRGB(image->getWidth(), image->getHeight(), buffer);
+			return buffer;
+		}
+		else
+			return (unsigned char*)image->getMetaData().Data();
+	}
+#endif
+
+	template < typename ImageT >
+	unsigned short* GetDepthBuffer(const boost::shared_ptr<ImageT>&)
+	{
+	}
+
+#ifdef HAVE_OPENNI2
+	template <>
+	unsigned short* GetDepthBuffer(const boost::shared_ptr<io::DepthImage>& image)
+	{
+		return (unsigned short*)image->getData();
+	}
+#endif
+
+#ifdef HAVE_OPENNI
+	template <>
+	unsigned short* GetDepthBuffer(const boost::shared_ptr<openni_wrapper::DepthImage>& image)
+	{
+		return (unsigned short*)image->getDepthMetaData().Data();
+	}
+#endif
+
+#define FPS_CALC(_WHAT_) \
+do \
+{ \
+    static unsigned count = 0;\
+    static double last = pcl::getTime ();\
+    double now = pcl::getTime (); \
+    ++count; \
+    if (now - last >= 1.0) \
+								    { \
+      std::cout << "Average framerate("<< _WHAT_ << "): " << double(count)/double(now - last) << " Hz" <<  std::endl; \
+      count = 0; \
+      last = now; \
+								    } \
+}while(false)
 
 }
 

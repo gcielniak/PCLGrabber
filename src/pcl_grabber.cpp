@@ -36,10 +36,10 @@ int main(int argc, char **argv)
 		exit(0);
 	}
 
-	typedef PointXYZRGBA PointType;
-	BasicGrabber<PointType> grabber;
-	FileOutput<PointType> writer, aux_writer;
-	BasicViewer<PointType> viewer;
+	typedef PointXYZRGBA PointT;
+	BasicGrabber<PointT> grabber;
+	FileOutput<PointT, io::Image, io::DepthImage> writer;
+	BasicViewer<PointT, io::Image, io::DepthImage> viewer;
 
 	for (int i = 1; i < argc; i++)
 	{
