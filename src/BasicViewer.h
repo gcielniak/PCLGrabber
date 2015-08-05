@@ -50,8 +50,10 @@ namespace pcl
 			if (vis_cloud && grabber->providesCallback<void(const boost::shared_ptr<const PointCloud<PointT> >&)>())
 			{
 				visualizer = new visualization::PCLVisualizer("PCLGrabber: point cloud");
-				visualizer->setCameraPosition(0.0, 1.0, -4.0, 0.0, 1.0, 0.0);
-//				visualizer->setCameraPosition(0.0, 20.0, 0.0, 0.0, 0.0, 1.0);
+				visualizer->addCoordinateSystem(1.0);
+//				visualizer->setCameraPosition(-5.0, 0.0, 0.0, 1.0, 0.0, 0.0);
+//				visualizer->setCameraPosition(0.0, 1.0, -4.0, 0.0, 1.0, 0.0);
+				visualizer->setCameraPosition(0.0, -20.0, 0.0, 0.0, 0.0, 1.0);
 
 				boost::function<void(const boost::shared_ptr<const PointCloud<PointT> >&)> f_viscloud =
 					boost::bind(&BasicViewer::cloud_cb_, this, _1);
@@ -101,6 +103,14 @@ namespace pcl
 						visualization::PointCloudColorHandlerRGBField<PointT> color_h(cloud);
 						if (!visualizer->updatePointCloud<PointT>(cloud, color_h))
 							visualizer->addPointCloud<PointT>(cloud, color_h);
+
+						/*
+						Eigen::Quaternionf orient = cloud->sensor_orientation_;
+						Eigen::Vector4f origin = cloud->sensor_origin_;
+
+						cerr << "Orient x: " << orient.x() << ", y: " << orient.y() << ", z: " << orient.z() << ", w: " << orient.w() << endl;
+						cerr << "Origin x: " << origin.x() << ", y: " << origin.y() << ", z: " << origin.z() << endl;
+						*/
 					}
 
 					visualizer->spinOnce();

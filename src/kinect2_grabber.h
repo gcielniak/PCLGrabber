@@ -290,25 +290,6 @@ namespace pcl
 			}
 		}
 
-		void UpdateMapping()
-		{
-			if (mapping_updated)
-				return;
-
-			int depth_size = depthWidth*depthHeight;
-
-			if (camera_space_points.size() != depth_size)
-				camera_space_points.resize(depth_size);
-
-			if (color_space_points.size() != depth_size)
-				color_space_points.resize(depth_size);
-
-			mapper->MapDepthFrameToCameraSpace(depth_size, &depthBuffer[0], camera_space_points.size(), &camera_space_points[0]);
-			mapper->MapDepthFrameToColorSpace(depth_size, &depthBuffer[0], color_space_points.size(), &color_space_points[0]);
-
-			mapping_updated = true;
-		}
-
 	protected:
 		boost::signals2::signal<signal_Kinect2_PointXYZ>* signal_PointXYZ;
 		boost::signals2::signal<signal_Kinect2_PointXYZRGB>* signal_PointXYZRGB;
@@ -514,7 +495,7 @@ namespace pcl
 				{
 					RGBQUAD* cp = &colorBuffer[color_ind];
 					pt->x = csp->X;
-					pt->y = csp->Y;
+					pt->y = -csp->Y;//-Y makes it compatible with OpenNI point clouds and image readers
 					pt->z = csp->Z;
 					pt->b = cp->rgbBlue;
 					pt->g = cp->rgbGreen;
@@ -524,6 +505,26 @@ namespace pcl
 
 			return cloud;
 		}
+
+		void UpdateMapping()
+		{
+			if (mapping_updated)
+				return;
+
+			int depth_size = depthWidth*depthHeight;
+
+			if (camera_space_points.size() != depth_size)
+				camera_space_points.resize(depth_size);
+
+			if (color_space_points.size() != depth_size)
+				color_space_points.resize(depth_size);
+
+			mapper->MapDepthFrameToCameraSpace(depth_size, &depthBuffer[0], camera_space_points.size(), &camera_space_points[0]);
+			mapper->MapDepthFrameToColorSpace(depth_size, &depthBuffer[0], color_space_points.size(), &color_space_points[0]);
+
+			mapping_updated = true;
+		}
+
 	};
 
 }
