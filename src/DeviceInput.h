@@ -196,7 +196,11 @@ namespace pcl
 #ifdef HAVE_KINECT2_NATIVE
 			if (!grabber && (supported_platforms[platform] == KINECT2_NATIVE_PLATFORM))
 			{
-				grabber = new Kinect2Grabber();
+#ifdef HAVE_OPENNI2
+				grabber = new Kinect2Grabber<io::Image, io::DepthImage>();
+#elif HAVE_OPENNI
+				grabber = new Kinect2Grabber<openni_wrapper::Image, openni_wrapper::DepthImage>();
+#endif
 			}
 #endif
 #endif			
