@@ -20,13 +20,13 @@
 namespace pcl
 {
 	template < typename ImageT >
-	boost::shared_ptr<ImageT> ToImageRGB24(const unsigned char* buffer, int width, int height)
+	boost::shared_ptr<ImageT> ToImageRGB24(const unsigned char* buffer, int width, int height, long long timestamp)
 	{
 	}
 
 #ifdef HAVE_OPENNI2
 	template <>
-	boost::shared_ptr<io::Image> ToImageRGB24<io::Image>(const unsigned char* buffer, int width, int height)
+	boost::shared_ptr<io::Image> ToImageRGB24<io::Image>(const unsigned char* buffer, int width, int height, long long timestamp)
 	{
 		OniFrame *oni_frame = new OniFrame();
 		oni_frame->data = (void*)buffer;
@@ -34,6 +34,7 @@ namespace pcl
 		oni_frame->height = height;
 		oni_frame->width = width;
 		oni_frame->stride = width * 3;
+		oni_frame->timestamp = timestamp;
 
 		openni::VideoFrameRef frame;
 		frame._setFrame(oni_frame);
@@ -45,24 +46,25 @@ namespace pcl
 
 #ifdef HAVE_OPENNI
 	template <>
-	boost::shared_ptr<openni_wrapper::Image> ToImageRGB24<openni_wrapper::Image>(const unsigned char* buffer, int width, int height)
+	boost::shared_ptr<openni_wrapper::Image> ToImageRGB24<openni_wrapper::Image>(const unsigned char* buffer, int width, int height, long long timestamp)
 	{
 		boost::shared_ptr< xn::ImageMetaData > frame_wrapper = boost::make_shared<xn::ImageMetaData>();
 
 		frame_wrapper->ReAdjust(width, height, XnPixelFormat::XN_PIXEL_FORMAT_RGB24, &buffer[0]);
+		frame_wrapper->Timestamp() = timestamp;
 
 		return boost::make_shared<openni_wrapper::ImageRGB24>(frame_wrapper);
 	}
 #endif
 
 	template < typename ImageT >
-	boost::shared_ptr<ImageT> ToDepthImage(const unsigned short* buffer, int width, int height, float focal_length)
+	boost::shared_ptr<ImageT> ToDepthImage(const unsigned short* buffer, int width, int height, float focal_length, long long timestamp)
 	{
 	}
 
 #ifdef HAVE_OPENNI2
 	template <>
-	io::DepthImage::Ptr ToDepthImage<io::DepthImage>(const unsigned short* buffer, int width, int height, float focal_length)
+	io::DepthImage::Ptr ToDepthImage<io::DepthImage>(const unsigned short* buffer, int width, int height, float focal_length, long long timestamp)
 	{
 		OniFrame *oni_frame = new OniFrame();
 		oni_frame->data = (void*)buffer;
@@ -70,6 +72,7 @@ namespace pcl
 		oni_frame->height = height;
 		oni_frame->width = width;
 		oni_frame->stride = width * sizeof(unsigned short);
+		oni_frame->timestamp = timestamp;
 
 		openni::VideoFrameRef frame;
 		frame._setFrame(oni_frame);
@@ -81,11 +84,12 @@ namespace pcl
 
 #ifdef HAVE_OPENNI
 	template <>
-	openni_wrapper::DepthImage::Ptr ToDepthImage<openni_wrapper::DepthImage>(const unsigned short* buffer, int width, int height, float focal_length)
+	openni_wrapper::DepthImage::Ptr ToDepthImage<openni_wrapper::DepthImage>(const unsigned short* buffer, int width, int height, float focal_length, long long timestamp)
 	{
 		boost::shared_ptr< xn::DepthMetaData > frame_wrapper = boost::make_shared<xn::DepthMetaData>();
 
 		frame_wrapper->ReAdjust(width, height, (const XnDepthPixel*)&buffer[0]);
+		frame_wrapper->Timestamp() = timestamp;
 
 		return boost::make_shared<openni_wrapper::DepthImage>(frame_wrapper, 0.0, focal_length, 0.0, 0.0);
 	}
@@ -144,6 +148,39 @@ namespace pcl
 	unsigned short* GetDepthBuffer(const boost::shared_ptr<openni_wrapper::DepthImage>& image)
 	{
 		return (unsigned short*)image->getDepthMetaData().Data();
+	}
+#endif
+
+	template <typename ImageT>
+	long long GetTimeStamp(const boost::shared_ptr<ImageT>&)
+	{
+	}
+
+#ifdef HAVE_OPENNI2
+	template <>
+	long long GetTimeStamp(const boost::shared_ptr<io::Image>& image)
+	{
+		return image->getTimestamp();
+	}
+
+	template <>
+	long long GetTimeStamp(const boost::shared_ptr<io::DepthImage>& image)
+	{
+		return image->getTimestamp();
+	}
+#endif
+
+#ifdef HAVE_OPENNI
+	template <>
+	long long GetTimeStamp(const boost::shared_ptr<openni_wrapper::Image>& image)
+	{
+		return image->getTimeStamp();
+	}
+
+	template <>
+	long long GetTimeStamp(const boost::shared_ptr<openni_wrapper::DepthImage>& image)
+	{
+		return image->getTimeStamp();
 	}
 #endif
 

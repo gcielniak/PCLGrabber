@@ -28,7 +28,7 @@ namespace pcl
 		string output_data_path;
 
 	public:
-		FileOutput() : image_counter(0), output_data_path(".\\data\\" + currentDateTime() + "\\"), format(-1) {}
+		FileOutput() : image_counter(0), output_data_path(".\\data\\" + currentDateTime() + "\\"), format(-1), sensor_timestamp_start(0) {}
 
 		void Format(int value) { format = value; }
 		int Format() { return format; }
@@ -38,7 +38,7 @@ namespace pcl
 
 		void WritePCD(const boost::shared_ptr<const PointCloud<PointT> >& cloud)
 		{
-			string timestamp = boost::posix_time::to_iso_string(boost::posix_time::microsec_clock::universal_time());
+			string timestamp = boost::posix_time::to_iso_string(boost::posix_time::microsec_clock::local_time());
 
 			if (!boost::filesystem::exists(boost::filesystem::path(output_data_path)))
 				boost::filesystem::create_directories(boost::filesystem::path(output_data_path));
@@ -50,12 +50,35 @@ namespace pcl
 			FPS_CALC("WRITE PCD");
 		}
 
+		boost::posix_time::ptime from_us(long long us)
+		{
+			return boost::posix_time::from_time_t(us / 1000000) + boost::posix_time::microseconds(us % 1000000);
+		}
+
+		long long sensor_timestamp_start;
+		boost::posix_time::ptime sensor_time_start;
+
 		void WriteImage(const boost::shared_ptr<ImageT>& color_image, const boost::shared_ptr<DepthImageT>& depth_image, const boost::shared_ptr<ImageT>& orig_image)
 		{
 			io::LZFDepth16ImageWriter depth_writer;
 			io::LZFRGB24ImageWriter color_writer;
 
-			string time_string = boost::posix_time::to_iso_string(boost::posix_time::microsec_clock::universal_time());
+			boost::posix_time::ptime current_time = boost::posix_time::microsec_clock::local_time();
+
+			long long depth_timestamp = GetTimeStamp(depth_image);
+
+			if (!sensor_timestamp_start)//first frame
+			{
+				sensor_time_start = current_time;
+				sensor_timestamp_start = depth_timestamp;
+			}
+
+			long long depth_timedelta = depth_timestamp - sensor_timestamp_start;
+
+			boost::posix_time::ptime corrected_time = sensor_time_start + boost::posix_time::microseconds(depth_timedelta);
+
+			string time_string = boost::posix_time::to_iso_string(corrected_time);
+//			string time_string = boost::posix_time::to_iso_string(current_time);
 
 			if (!boost::filesystem::exists(boost::filesystem::path(output_data_path)))
 				boost::filesystem::create_directories(boost::filesystem::path(output_data_path));

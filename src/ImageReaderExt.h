@@ -1,14 +1,19 @@
 #pragma once
 #include "ImageUtils.h"
+#include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/date_time/gregorian/gregorian.hpp>
 
 namespace pcl
 {
 	template < typename ImageT >
 	class LZFRGB24ImageReaderExt : public io::LZFRGB24ImageReader
 	{
+	protected:
+		boost::posix_time::ptime epoch;
+
 	public:
 		/** Empty constructor */
-		LZFRGB24ImageReaderExt() : io::LZFRGB24ImageReader() {}
+		LZFRGB24ImageReaderExt() : io::LZFRGB24ImageReader(), epoch(boost::gregorian::date(1970, 1, 1)) {}
 
 		/** Empty destructor */
 		virtual ~LZFRGB24ImageReaderExt() {}
@@ -56,16 +61,23 @@ namespace pcl
 				*bf++ = *color_b++;
 			}
 
-			return ToImageRGB24<ImageT>(&buffer[0], getWidth(), getHeight());
+			boost::filesystem::path path(filename);
+			boost::posix_time::ptime t = boost::posix_time::from_iso_string(path.filename().string().substr(6, 22));//image timestamp
+			boost::posix_time::time_duration td(t - epoch);//time since epoch
+
+			return ToImageRGB24<ImageT>(&buffer[0], getWidth(), getHeight(), td.total_nanoseconds());
 		}
 	};
 
 	template < typename ImageT >
 	class LZFDepth16ImageReaderExt : public io::LZFDepth16ImageReader
 	{
+	protected:
+		boost::posix_time::ptime epoch;
+
 	public:
 		/** Empty constructor */
-		LZFDepth16ImageReaderExt() : io::LZFDepth16ImageReader() {}
+		LZFDepth16ImageReaderExt() : io::LZFDepth16ImageReader(), epoch(boost::gregorian::date(1970, 1, 1)) {}
 
 		/** Empty destructor */
 		virtual ~LZFDepth16ImageReaderExt() {}
@@ -95,11 +107,15 @@ namespace pcl
 				return (false);
 			}
 
+			boost::filesystem::path path(filename);
+			boost::posix_time::ptime t = boost::posix_time::from_iso_string(path.filename().string().substr(6, 22));//image timestamp
+			boost::posix_time::time_duration td(t - epoch);//time since epoch
+
 			unsigned short *depth_data = reinterpret_cast<unsigned short*> (&uncompressed_data[0]);
 
 			buffer.assign(depth_data, depth_data + getWidth() * getHeight());
 
-			return ToDepthImage<ImageT>(&buffer[0], getWidth(), getHeight(), focal_point);
+			return ToDepthImage<ImageT>(&buffer[0], getWidth(), getHeight(), focal_point, td.total_nanoseconds());
 		}
 	};
 }
