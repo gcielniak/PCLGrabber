@@ -183,8 +183,12 @@ namespace pcl
 #ifdef HAVE_ENSENSO
 			if (!grabber && (supported_platforms[platform] == ENSENSO_PLATFORM))
 			{
+				//freopen("out2.txt", "a", stdout);
+
 				pcl::EnsensoGrabber device_manager;
 				int nr_of_devices = device_manager.enumDevices();
+
+				pcl::EnsensoGrabber device_manager2;
 
 				if (device > nr_of_devices)
 					throw new pcl::PCLException("DeviceInput::GetGrabber, wrong device number.");

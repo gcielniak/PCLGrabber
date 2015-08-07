@@ -26,15 +26,19 @@ namespace pcl
 	{
 		int image_counter, format;
 		string output_data_path;
+		bool simulated_time;
 
 	public:
-		FileOutput() : image_counter(0), output_data_path(".\\data\\" + currentDateTime() + "\\"), format(-1), sensor_timestamp_start(0) {}
+		FileOutput() : image_counter(0), output_data_path(".\\data\\" + currentDateTime() + "\\"), format(-1), sensor_timestamp_start(0), simulated_time(false) {}
 
 		void Format(int value) { format = value; }
 		int Format() { return format; }
 
 		string OutputDir() { return output_data_path; }
 		void OutputDir(const string new_path) { output_data_path = new_path; }
+
+		void SimulatedTime(bool value) { simulated_time = value; }
+		bool SimulatedTime() { return simulated_time; }
 
 		void WritePCD(const boost::shared_ptr<const PointCloud<PointT> >& cloud)
 		{
@@ -77,8 +81,18 @@ namespace pcl
 
 			boost::posix_time::ptime corrected_time = sensor_time_start + boost::posix_time::microseconds(depth_timedelta);
 
-			string time_string = boost::posix_time::to_iso_string(corrected_time);
-//			string time_string = boost::posix_time::to_iso_string(current_time);
+			string time_string;
+
+			if (simulated_time)
+			{
+				time_string = boost::posix_time::to_iso_string(from_us(depth_timestamp));
+			}
+			else
+			{
+				time_string = boost::posix_time::to_iso_string(corrected_time);
+				//time_string = boost::posix_time::to_iso_string(current_time);
+			}
+
 
 			if (!boost::filesystem::exists(boost::filesystem::path(output_data_path)))
 				boost::filesystem::create_directories(boost::filesystem::path(output_data_path));

@@ -65,7 +65,7 @@ namespace pcl
 			boost::posix_time::ptime t = boost::posix_time::from_iso_string(path.filename().string().substr(6, 22));//image timestamp
 			boost::posix_time::time_duration td(t - epoch);//time since epoch
 
-			return ToImageRGB24<ImageT>(&buffer[0], getWidth(), getHeight(), td.total_nanoseconds());
+			return ToImageRGB24<ImageT>(&buffer[0], getWidth(), getHeight(), td.total_microseconds());
 		}
 	};
 
@@ -115,7 +115,7 @@ namespace pcl
 
 			buffer.assign(depth_data, depth_data + getWidth() * getHeight());
 
-			return ToDepthImage<ImageT>(&buffer[0], getWidth(), getHeight(), focal_point, td.total_nanoseconds());
+			return ToDepthImage<ImageT>(&buffer[0], getWidth(), getHeight(), focal_point, td.total_microseconds());
 		}
 	};
 }

@@ -17,6 +17,7 @@ namespace pcl
 		bool pclzf_mode;
 		vector<unsigned char> color_buffer, orig_buffer;
 		vector<unsigned short> depth_buffer;
+		int file_index;
 
 	protected:
 		boost::signals2::signal<Signal_ImageDepth>* signal_ImageDepth;
@@ -26,7 +27,7 @@ namespace pcl
 		ImageGrabberExt(const std::string& dir_,
 			float frames_per_second = 0,
 			bool repeat = false,
-			bool pclzf_mode_ = false) : ImageGrabber<PointT>(dir_, frames_per_second, repeat, pclzf_mode_), dir(dir_), pclzf_mode(pclzf_mode_)
+			bool pclzf_mode_ = false) : ImageGrabber<PointT>(dir_, frames_per_second, repeat, pclzf_mode_), dir(dir_), pclzf_mode(pclzf_mode_), file_index(0)
 			, signal_ImageDepth(nullptr), signal_ImageDepthImage(nullptr)
 		{
 			boost::function<void(const boost::shared_ptr<const PointCloud<PointT> >&)> f_cloud =
@@ -40,14 +41,14 @@ namespace pcl
 		ImageGrabberExt(const std::string& depth_dir,
 			const std::string& rgb_dir,
 			float frames_per_second = 0,
-			bool repeat = false) : ImageGrabber<PointT>(depth_dir, rgb_dir, frames_per_second, repeat), pclzf_mode(false)
+			bool repeat = false) : ImageGrabber<PointT>(depth_dir, rgb_dir, frames_per_second, repeat), pclzf_mode(false), file_index(0)
 			, signal_ImageDepth(nullptr), signal_ImageDepthImage(nullptr)
 		{
 		}
 
 		ImageGrabberExt(const std::vector<std::string>& depth_image_files,
 			float frames_per_second = 0,
-			bool repeat = false) : ImageGrabber<PointT>(depth_image_files, frames_per_second, repeat), pclzf_mode(false)
+			bool repeat = false) : ImageGrabber<PointT>(depth_image_files, frames_per_second, repeat), pclzf_mode(false), file_index(0)
 			, signal_ImageDepth(nullptr), signal_ImageDepthImage(nullptr)
 		{
 		}
@@ -62,14 +63,15 @@ namespace pcl
 		{
 			if (signal_ImageDepth->num_slots() > 0)
 			{
-				string file_name = dir + "\\" + this->getCurrentDepthFileName();
+				string file_name = dir + "\\" + this->getDepthFileNameAtIndex(file_index);
 				signal_ImageDepth->operator()(ToRGB24Image(file_name), ToDepthImage(file_name), 1.0);
 			}
 			if (signal_ImageDepthImage->num_slots() > 0)
 			{
-				string file_name = dir + "\\" + this->getCurrentDepthFileName();
+				string file_name = dir + "\\" + this->getDepthFileNameAtIndex(file_index);
 				signal_ImageDepthImage->operator()(ToRGB24Image(file_name), ToDepthImage(file_name), ToRGB24OrigImage(file_name));
 			}
+			file_index++;
 		}
 
 		boost::shared_ptr<ImageT> ToRGB24Image(const string& file_name)
