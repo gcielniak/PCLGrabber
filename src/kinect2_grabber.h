@@ -425,6 +425,10 @@ namespace pcl
 					if (typeid(PointT) == typeid(PointXYZRGBA))
 						pt->a = 255;
 				}
+				else
+				{
+					pt->x = pt->y = pt->z = pt->x = std::numeric_limits<float>::quiet_NaN();
+				}
 			}
 
 			return cloud;

@@ -147,18 +147,18 @@ namespace pcl
 		Grabber* GetGrabber(int platform = 0, int device = 0)
 		{
 			if (grabber)
-				throw new pcl::PCLException("DeviceInput::GetGrabber, deviced already initalised.");
+				throw pcl::PCLException("DeviceInput::GetGrabber, deviced already initalised.");
 
 			if (platform >= supported_platforms.size())
-				throw new pcl::PCLException("DeviceInput::GetGrabber, wrong platform number.");
+				throw pcl::PCLException("DeviceInput::GetGrabber, wrong platform number.");
 
 #ifdef HAVE_OPENNI2
 			if (!grabber && (supported_platforms[platform] == OPENNI2_PLATFORM))
 			{
 				io::openni2::OpenNI2DeviceManager device_manager;
 				size_t nr_of_devices = device_manager.getNumOfConnectedDevices();
-				if (device > nr_of_devices)
-					throw new pcl::PCLException("DeviceInput::GetGrabber, wrong device number.");
+				if (device >= nr_of_devices)
+					throw pcl::PCLException("DeviceInput::GetGrabber, wrong device number.");
 				ostringstream device_str;
 				device_str << "#" << device + 1;
 				grabber = new io::OpenNI2Grabber(device_str.str());
@@ -171,8 +171,8 @@ namespace pcl
 				openni_wrapper::OpenNIDriver& device_manager = openni_wrapper::OpenNIDriver::getInstance();
 				unsigned int nr_of_devices = device_manager.getNumberDevices();
 
-				if (device > nr_of_devices)
-					throw new pcl::PCLException("DeviceInput::GetGrabber, wrong device number.");
+				if (device >= nr_of_devices)
+					throw pcl::PCLException("DeviceInput::GetGrabber, wrong device number.");
 				ostringstream device_str;
 				device_str << "#" << device + 1;
 				grabber = new OpenNIGrabber(device_str.str());
@@ -190,8 +190,8 @@ namespace pcl
 
 				pcl::EnsensoGrabber device_manager2;
 
-				if (device > nr_of_devices)
-					throw new pcl::PCLException("DeviceInput::GetGrabber, wrong device number.");
+				if (device >= nr_of_devices)
+					throw pcl::PCLException("DeviceInput::GetGrabber, wrong device number.");
 
 				grabber = new EnsensoGrabberExt(device);
 			}
@@ -209,7 +209,7 @@ namespace pcl
 #endif
 #endif			
 			if (!grabber)
-				throw new pcl::PCLException("DeviceInput::GetGrabber, could not initalise the specified device.");
+				throw pcl::PCLException("DeviceInput::GetGrabber, could not initalise the specified device.");
 
 			platform_type = supported_platforms[platform];
 			return grabber;

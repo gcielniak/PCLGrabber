@@ -64,6 +64,8 @@ namespace pcl
 				return grabber;
 			}
 
+			PCL_THROW_EXCEPTION(pcl::IOException, "No recognised files in the directory given!\n");
+
 			return grabber;
 		}
 

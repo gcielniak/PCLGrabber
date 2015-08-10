@@ -17,7 +17,7 @@ namespace pcl
 		bool repeat;
 
 	public:
-		BasicGrabber() : platform(0), device(0), grabber(0), fps(0.), repeat(false) 
+		BasicGrabber() : platform(0), device(-1), grabber(0), fps(0.), repeat(false) 
 		{
 		}
 
@@ -40,10 +40,10 @@ namespace pcl
 
 		void Init()
 		{
-			if (file_name.empty())
-				grabber = device_input.GetGrabber(platform, device);
-			else
+			if (device == -1)
 				grabber = file_input.GetGrabber(file_name, fps, repeat);
+			else
+				grabber = device_input.GetGrabber(platform, device);
 		}
 
 		void Start()

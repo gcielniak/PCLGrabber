@@ -64,9 +64,9 @@ int main(int argc, char **argv)
 	{
 		grabber.Init();
 	}
-	catch (pcl::PCLException& exc)
+	catch (pcl::PCLException&)
 	{
-		cerr << "Could not initialise the specified device." << endl;
+		cerr << "Could not initialise the specified input." << endl;
 		return 0;	
 	}
 
