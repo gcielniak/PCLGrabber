@@ -38,10 +38,13 @@ int main(int argc, char **argv)
 
 	typedef PointXYZRGBA PointT;
 	BasicGrabber<PointT> grabber;
-//	FileOutput<PointT, io::Image, io::DepthImage> writer;
-//	BasicViewer<PointT, io::Image, io::DepthImage> viewer;
+#ifdef HAVE_OPENCV
 	FileOutput<PointT, cv::Mat, cv::Mat> writer;
 	BasicViewer<PointT, cv::Mat, cv::Mat> viewer;
+#else
+	FileOutput<PointT, io::Image, io::DepthImage> writer;
+	BasicViewer<PointT, io::Image, io::DepthImage> viewer;
+#endif
 
 	for (int i = 1; i < argc; i++)
 	{
