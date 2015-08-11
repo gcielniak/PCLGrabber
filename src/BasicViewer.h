@@ -125,10 +125,10 @@ namespace pcl
 					}
 
 					if (depth_image)
-						depth_viewer->showShortImage(GetDepthBuffer(depth_image), depth_image->getWidth(), depth_image->getHeight());
+						depth_viewer->showShortImage(GetDepthBuffer(depth_image), GetWidth(depth_image), GetHeight(depth_image));
 
 					if (color_image)
-						color_viewer->showRGBImage(GetRGBBuffer(color_image), color_image->getWidth(), color_image->getHeight());
+						color_viewer->showRGBImage(GetRGBBuffer(color_image), GetWidth(color_image), GetHeight(color_image));
 
 					depth_viewer->spinOnce();
 					color_viewer->spinOnce();

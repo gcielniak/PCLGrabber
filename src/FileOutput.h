@@ -119,30 +119,42 @@ namespace pcl
 			if (depth_image != nullptr)
 			{
 				io::CameraParameters depth_parameters;
-				depth_parameters.focal_length_x = depth_parameters.focal_length_y = depth_image->getFocalLength();
-				depth_parameters.principal_point_x = (depth_image->getWidth() - 1.f) / 2.f;
-				depth_parameters.principal_point_y = (depth_image->getHeight() - 1.f) / 2.f;
+				depth_parameters.focal_length_x = depth_parameters.focal_length_y = GetFocalLength(depth_image);
+				depth_parameters.principal_point_x = (GetWidth(depth_image) - 1.f) / 2.f;
+				depth_parameters.principal_point_y = (GetHeight(depth_image) - 1.f) / 2.f;
 				depth_writer.writeParameters(depth_parameters, output_data_path + xml_file_name.str());
 
 				if (format == 0)
-					depth_writer.write((const char*)GetDepthBuffer(depth_image), depth_image->getWidth(), depth_image->getHeight(), output_data_path + depth_file_name.str());
+					depth_writer.write((const char*)GetDepthBuffer(depth_image), GetWidth(depth_image), GetHeight(depth_image), output_data_path + depth_file_name.str());
 				else
-					io::saveShortPNGFile(output_data_path + depth_file_name.str(), GetDepthBuffer(depth_image), depth_image->getWidth(), depth_image->getHeight(), 1);
+#ifdef HAVE_OPENCV
+					cv::imwrite(output_data_path + depth_file_name.str(), cv::Mat(GetHeight(depth_image), GetWidth(depth_image), CV_16UC1, (void*)GetRGBBuffer(depth_image), GetWidth(depth_image) * 2));
+#else
+					io::saveShortPNGFile(output_data_path + depth_file_name.str(), GetDepthBuffer(depth_image), GetWidth(depth_image), GetHeight(depth_image), 1);
+#endif
 			}
 
 			if (color_image != nullptr)
 			{
 				if (format == 0)
-					color_writer.write((const char*)GetRGBBuffer(color_image), color_image->getWidth(), color_image->getHeight(), output_data_path + color_file_name.str());
+					color_writer.write((const char*)GetRGBBuffer(color_image), GetWidth(color_image), GetHeight(color_image), output_data_path + color_file_name.str());
 				else
-					io::saveRgbPNGFile(output_data_path + color_file_name.str(), GetRGBBuffer(color_image), color_image->getWidth(), color_image->getHeight());
+#ifdef HAVE_OPENCV
+					cv::imwrite(output_data_path + color_file_name.str(), cv::Mat(GetHeight(color_image), GetWidth(color_image), CV_8UC3, (void*)GetRGBBuffer(color_image), GetWidth(color_image) * 3));
+#else
+					io::saveRgbPNGFile(output_data_path + color_file_name.str(), GetRGBBuffer(color_image), GetWidth(color_image), GetHeight(color_image));
+#endif
 			}
 			if (orig_image != nullptr)
 			{
 				if (format == 0)
-					color_writer.write((const char*)GetRGBBuffer(orig_image), orig_image->getWidth(), orig_image->getHeight(), output_data_path + orig_file_name.str());
+					color_writer.write((const char*)GetRGBBuffer(orig_image), GetWidth(orig_image), GetHeight(orig_image), output_data_path + orig_file_name.str());
 				else
-					io::saveRgbPNGFile(output_data_path + orig_file_name.str(), GetRGBBuffer(orig_image), orig_image->getWidth(), orig_image->getHeight());
+#ifdef HAVE_OPENCV
+					cv::imwrite(output_data_path + orig_file_name.str(), cv::Mat(GetHeight(orig_image), GetWidth(orig_image), CV_8UC3, (void*)GetRGBBuffer(orig_image), GetWidth(orig_image) * 3));
+#else
+					io::saveRgbPNGFile(output_data_path + color_file_name.str(), GetRGBBuffer(orig_image), GetWidth(orig_image), GetHeight(orig_image));
+#endif
 			}
 
 			FPS_CALC("WRITE IMAGE");

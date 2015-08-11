@@ -17,7 +17,7 @@ namespace pcl
 		bool repeat;
 
 	public:
-		BasicGrabber() : platform(0), device(-1), grabber(0), fps(0.), repeat(false) 
+		BasicGrabber() : platform(0), device(0), grabber(0), fps(0.), repeat(false) 
 		{
 		}
 
@@ -30,7 +30,7 @@ namespace pcl
 
 		void Device(int value) { device = value; }
 
-		void File(string value) { file_name = value; }
+		void File(string value) { file_name = value; device = -1; }
 
 		void FPS(double value) { fps = value; }
 

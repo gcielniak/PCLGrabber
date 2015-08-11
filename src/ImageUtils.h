@@ -17,6 +17,10 @@
 #include <pcl/io/openni_camera/openni_depth_image.h>
 #endif
 
+#ifdef HAVE_OPENCV
+#include <opencv2/opencv.hpp>
+#endif
+
 namespace pcl
 {
 	template < typename ImageT >
@@ -54,6 +58,14 @@ namespace pcl
 		frame_wrapper->Timestamp() = timestamp;
 
 		return boost::make_shared<openni_wrapper::ImageRGB24>(frame_wrapper);
+	}
+#endif
+
+#ifdef HAVE_OPENCV
+	template <>
+	boost::shared_ptr<cv::Mat> ToImageRGB24<cv::Mat>(const unsigned char* buffer, int width, int height, long long timestamp)
+	{
+		return boost::make_shared<cv::Mat>(height, width, CV_8UC3, (void*)buffer, width * 3);
 	}
 #endif
 
@@ -95,6 +107,14 @@ namespace pcl
 	}
 #endif
 
+#ifdef HAVE_OPENCV
+	template <>
+	boost::shared_ptr<cv::Mat> ToDepthImage<cv::Mat>(const unsigned short* buffer, int width, int height, float focal_length, long long timestamp)
+	{
+		return boost::make_shared<cv::Mat>(height, width, CV_16UC1, (void*)buffer, width * 2);
+	}
+#endif
+
 	template < typename ImageT >
 	unsigned char* GetRGBBuffer(const boost::shared_ptr<ImageT>&)
 	{
@@ -130,6 +150,14 @@ namespace pcl
 	}
 #endif
 
+#ifdef HAVE_OPENCV
+	template <>
+	unsigned char* GetRGBBuffer(const boost::shared_ptr<cv::Mat>& image)
+	{
+		return (unsigned char*)image->data;
+	}
+#endif
+
 	template < typename ImageT >
 	unsigned short* GetDepthBuffer(const boost::shared_ptr<ImageT>&)
 	{
@@ -148,6 +176,43 @@ namespace pcl
 	unsigned short* GetDepthBuffer(const boost::shared_ptr<openni_wrapper::DepthImage>& image)
 	{
 		return (unsigned short*)image->getDepthMetaData().Data();
+	}
+#endif
+
+#ifdef HAVE_OPENCV
+	template <>
+	unsigned short* GetDepthBuffer(const boost::shared_ptr<cv::Mat>& image)
+	{
+		return (unsigned short*)image->data;
+	}
+#endif
+
+	template < typename ImageT >
+	float GetFocalLength(const boost::shared_ptr<ImageT>&)
+	{
+	}
+
+#ifdef HAVE_OPENNI2
+	template <>
+	float GetFocalLength(const boost::shared_ptr<io::DepthImage>& image)
+	{
+		return image->getFocalLength();
+	}
+#endif
+
+#ifdef HAVE_OPENNI
+	template <>
+	float GetFocalLength(const boost::shared_ptr<openni_wrapper::DepthImage>& image)
+	{
+		return image->getFocalLength();
+	}
+#endif
+
+#ifdef HAVE_OPENCV
+	template <>
+	float GetFocalLength(const boost::shared_ptr<cv::Mat>& image)
+	{
+		return 0;
 	}
 #endif
 
@@ -181,6 +246,96 @@ namespace pcl
 	long long GetTimeStamp(const boost::shared_ptr<openni_wrapper::DepthImage>& image)
 	{
 		return image->getTimeStamp();
+	}
+#endif
+
+#ifdef HAVE_OPENCV
+	template <>
+	long long GetTimeStamp(const boost::shared_ptr<cv::Mat>& image)
+	{
+		return 0;
+	}
+#endif
+
+	template <typename ImageT>
+	int GetWidth(const boost::shared_ptr<ImageT>&)
+	{
+	}
+
+#ifdef HAVE_OPENNI2
+	template <>
+	int GetWidth(const boost::shared_ptr<io::Image>& image)
+	{
+		return image->getWidth();
+	}
+
+	template <>
+	int GetWidth(const boost::shared_ptr<io::DepthImage>& image)
+	{
+		return image->getWidth();
+	}
+#endif
+
+#ifdef HAVE_OPENNI
+	template <>
+	int GetWidth(const boost::shared_ptr<openni_wrapper::Image>& image)
+	{
+		return image->getWidth();
+	}
+
+	template <>
+	int GetWidth(const boost::shared_ptr<openni_wrapper::DepthImage>& image)
+	{
+		return image->getWidth();
+	}
+#endif
+
+#ifdef HAVE_OPENCV
+	template <>
+	int GetWidth(const boost::shared_ptr<cv::Mat>& image)
+	{
+		return image->cols;
+	}
+#endif
+
+	template <typename ImageT>
+	int GetHeight(const boost::shared_ptr<ImageT>&)
+	{
+	}
+
+#ifdef HAVE_OPENNI2
+	template <>
+	int GetHeight(const boost::shared_ptr<io::Image>& image)
+	{
+		return image->getHeight();
+	}
+
+	template <>
+	int GetHeight(const boost::shared_ptr<io::DepthImage>& image)
+	{
+		return image->getHeight();
+	}
+#endif
+
+#ifdef HAVE_OPENNI
+	template <>
+	int GetHeight(const boost::shared_ptr<openni_wrapper::Image>& image)
+	{
+		return image->getHeight();
+	}
+
+	template <>
+	int GetHeight(const boost::shared_ptr<openni_wrapper::DepthImage>& image)
+	{
+		return image->getHeight();
+	}
+#endif
+
+#ifdef HAVE_OPENCV
+	template <>
+	int GetHeight(const boost::shared_ptr<cv::Mat>& image)
+	{
+		return image->rows;
 	}
 #endif
 
