@@ -3,6 +3,12 @@
 #pragma warning( disable : 4996)
 #endif
 
+#ifdef HAVE_OPENNI
+#include <pcl/io/openni_camera/image_metadata_wrapper.h>
+#include <pcl/io/openni_camera/openni_image_rgb24.h>
+#include <pcl/io/openni_camera/openni_depth_image.h>
+#endif
+
 #include "BasicViewer.h"
 #include "FileOutput.h"
 #include "BasicGrabber.h"
@@ -41,9 +47,12 @@ int main(int argc, char **argv)
 #ifdef HAVE_OPENCV
 	FileOutput<PointT, cv::Mat, cv::Mat> writer;
 	BasicViewer<PointT, cv::Mat, cv::Mat> viewer;
-#else
+#elif HAVE_OPENNI2
 	FileOutput<PointT, io::Image, io::DepthImage> writer;
 	BasicViewer<PointT, io::Image, io::DepthImage> viewer;
+#elif HAVE_OPENNI
+	FileOutput<PointT, openni_wrapper::Image, openni_wrapper::DepthImage> writer;
+	BasicViewer<PointT, openni_wrapper::Image, openni_wrapper::DepthImage> viewer;
 #endif
 
 	for (int i = 1; i < argc; i++)

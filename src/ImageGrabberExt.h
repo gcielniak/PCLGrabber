@@ -20,6 +20,9 @@ namespace pcl
 		int file_index;
 
 	protected:
+		using Grabber::createSignal;
+		using Grabber::disconnect_all_slots;
+		
 		boost::signals2::signal<Signal_ImageDepth>* signal_ImageDepth;
 		boost::signals2::signal<Signal_ImageDepthImage>* signal_ImageDepthImage;
 
@@ -53,7 +56,7 @@ namespace pcl
 		{
 		}
 
-		~ImageGrabberExt() throw()
+		virtual ~ImageGrabberExt() throw()
 		{
 			disconnect_all_slots<Signal_ImageDepth>();
 			disconnect_all_slots<Signal_ImageDepthImage>();

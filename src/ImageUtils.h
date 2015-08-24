@@ -54,7 +54,7 @@ namespace pcl
 	{
 		boost::shared_ptr< xn::ImageMetaData > frame_wrapper = boost::make_shared<xn::ImageMetaData>();
 
-		frame_wrapper->ReAdjust(width, height, XnPixelFormat::XN_PIXEL_FORMAT_RGB24, &buffer[0]);
+		frame_wrapper->ReAdjust(width, height, XN_PIXEL_FORMAT_RGB24, &buffer[0]);
 		frame_wrapper->Timestamp() = timestamp;
 
 		return boost::make_shared<openni_wrapper::ImageRGB24>(frame_wrapper);

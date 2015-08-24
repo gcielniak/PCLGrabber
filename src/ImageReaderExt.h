@@ -25,13 +25,13 @@ namespace pcl
 			if (!loadImageBlob(filename, compressed_data, uncompressed_size))
 			{
 				PCL_ERROR("[pcl::io::LZFRGB24ImageReaderExt::read] Unable to read image data from %s.\n", filename.c_str());
-				return (false);
+				return boost::shared_ptr<ImageT>();
 			}
 
 			if (uncompressed_size != getWidth() * getHeight() * 3)
 			{
 				PCL_DEBUG("[pcl::io::LZFRGB24ImageReaderExt::read] Uncompressed data has wrong size (%u), while in fact it should be %u bytes. \n[pcl::io::LZFRGB24ImageReaderExt::read] Are you sure %s is a 24-bit RGB PCLZF file? Identifier says: %s\n", uncompressed_size, getWidth() * getHeight() * 3, filename.c_str(), getImageType().c_str());
-				return (false);
+				return boost::shared_ptr<ImageT>();
 			}
 
 			std::vector<char> uncompressed_data(uncompressed_size);
@@ -40,7 +40,7 @@ namespace pcl
 			if (uncompressed_data.empty())
 			{
 				PCL_ERROR("[pcl::io::LZFRGB24ImageReaderExt::read] Error uncompressing data stored in %s!\n", filename.c_str());
-				return (false);
+				return boost::shared_ptr<ImageT>();
 			}
 
 			register int rgb_idx = 0;
@@ -89,13 +89,13 @@ namespace pcl
 			if (!loadImageBlob(filename, compressed_data, uncompressed_size))
 			{
 				PCL_ERROR("[pcl::io::LZFDepth16ImageReaderExt::read] Unable to read image data from %s.\n", filename.c_str());
-				return (false);
+				return boost::shared_ptr<ImageT>();
 			}
 
 			if (uncompressed_size != getWidth() * getHeight() * 2)
 			{
 				PCL_DEBUG("[pcl::io::LZFDepth16ImageReaderExt::read] Uncompressed data has wrong size (%u), while in fact it should be %u bytes. \n[pcl::io::LZFDepth16ImageReaderExt::read] Are you sure %s is a 16-bit depth PCLZF file? Identifier says: %s\n", uncompressed_size, getWidth() * getHeight() * 2, filename.c_str(), getImageType().c_str());
-				return (false);
+				return boost::shared_ptr<ImageT>();
 			}
 
 			std::vector<char> uncompressed_data(uncompressed_size);
@@ -104,7 +104,7 @@ namespace pcl
 			if (uncompressed_data.empty())
 			{
 				PCL_ERROR("[pcl::io::LZFDepth16ImageReaderExt::read] Error uncompressing data stored in %s!\n", filename.c_str());
-				return (false);
+				return boost::shared_ptr<ImageT>();
 			}
 
 			boost::filesystem::path path(filename);
