@@ -17,7 +17,7 @@ endif()
 
 find_package(PCL 1.3 REQUIRED COMPONENTS common io visualization)
 
-find_package( OpenCV)
+find_package( OpenCV QUIET )
 
 if (OPENCV_FOUND)
 add_definitions(-DHAVE_OPENCV)
