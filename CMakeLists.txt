@@ -17,6 +17,7 @@ endif()
 
 find_package(PCL 1.3 REQUIRED COMPONENTS common io visualization)
 
+set(OpenCV_STATIC OFF)
 find_package( OpenCV QUIET )
 
 if (OPENCV_FOUND)

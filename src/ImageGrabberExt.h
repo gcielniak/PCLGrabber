@@ -2,8 +2,18 @@
 #include <pcl/io/image_grabber.h>
 #include "ImageReaderExt.h"
 
+#ifdef HAVE_KINECT2_NATIVE
+#include "kinect2_grabber.h"
+#endif
+
 namespace pcl
 {
+	enum RegistrationMode {
+		R_NONE,
+		R_DEPTH2RGB,
+		R_RGB2DEPTH
+	};
+
 	using namespace std;
 
 	template <typename PointT, typename ImageT, typename DepthImageT>
@@ -18,6 +28,7 @@ namespace pcl
 		vector<unsigned char> color_buffer, orig_buffer;
 		vector<unsigned short> depth_buffer;
 		int file_index;
+		RegistrationMode registration_mode;
 
 	protected:
 		using Grabber::createSignal;
@@ -31,7 +42,7 @@ namespace pcl
 			float frames_per_second = 0,
 			bool repeat = false,
 			bool pclzf_mode_ = false) : ImageGrabber<PointT>(dir_, frames_per_second, repeat, pclzf_mode_), dir(dir_), pclzf_mode(pclzf_mode_), file_index(0)
-			, signal_ImageDepth(nullptr), signal_ImageDepthImage(nullptr)
+			, signal_ImageDepth(nullptr), signal_ImageDepthImage(nullptr), registration_mode(R_NONE)
 		{
 			boost::function<void(const boost::shared_ptr<const PointCloud<PointT> >&)> f_cloud =
 				boost::bind(&ImageGrabberExt<PointT, ImageT, DepthImageT>::GetImage, this, _1);
@@ -45,16 +56,52 @@ namespace pcl
 			const std::string& rgb_dir,
 			float frames_per_second = 0,
 			bool repeat = false) : ImageGrabber<PointT>(depth_dir, rgb_dir, frames_per_second, repeat), pclzf_mode(false), file_index(0)
-			, signal_ImageDepth(nullptr), signal_ImageDepthImage(nullptr)
+			, signal_ImageDepth(nullptr), signal_ImageDepthImage(nullptr), registration_mode(R_NONE)
 		{
 		}
 
 		ImageGrabberExt(const std::vector<std::string>& depth_image_files,
 			float frames_per_second = 0,
 			bool repeat = false) : ImageGrabber<PointT>(depth_image_files, frames_per_second, repeat), pclzf_mode(false), file_index(0)
-			, signal_ImageDepth(nullptr), signal_ImageDepthImage(nullptr)
+			, signal_ImageDepth(nullptr), signal_ImageDepthImage(nullptr), registration_mode(R_NONE)
 		{
 		}
+		/*
+		void SetRegistrationMode(RegistrationMode mode) 
+		{
+			registration_mode = mode;
+
+			IKinectSensor* sensor;
+			ICoordinateMapper* mapper;
+			HRESULT result;
+			vector<ColorSpacePoint> color_space_points;
+
+			//this is currently only possible with Kinect attached to the PC
+			// Create Sensor Instance
+			result = GetDefaultKinectSensor(&sensor);
+			if (FAILED(result)) {
+				throw std::exception("Exception : GetDefaultKinectSensor()");
+			}
+
+			// Open Sensor
+			result = sensor->Open();
+			if (FAILED(result)){
+				throw std::exception("Exception : IKinectSensor::Open()");
+			}
+
+			// Retrieved Coordinate Mapper
+			result = sensor->get_CoordinateMapper(&mapper);
+			if (FAILED(result)){
+				throw std::exception("Exception : IKinectSensor::get_CoordinateMapper()");
+			}
+
+			if (color_space_points.size() != depth_buffer.size())
+				color_space_points.resize(depth_buffer.size());
+
+//			mapper->MapDepthFrameToColorSpace(depth_size, &depthBuffer[0], color_space_points.size(), &color_space_points[0]);
+
+		}
+		*/
 
 		virtual ~ImageGrabberExt() throw()
 		{
