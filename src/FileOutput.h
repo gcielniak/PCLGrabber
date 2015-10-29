@@ -164,7 +164,13 @@ namespace pcl
 		{
 			if ((format == 0) || (format == 2))
 			{
-				if (grabber->providesCallback<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthImageT>&, const boost::shared_ptr<ImageT>&)>())
+				if (grabber->providesCallback<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthImageT>&, const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthImageT>&)>())
+				{
+					boost::function<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthImageT>&, const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthImageT>&)> f_image =
+						boost::bind(&FileOutput::WriteImage, this, _3, _4, boost::shared_ptr<ImageT>());
+					grabber->registerCallback(f_image);
+				}
+				else if (grabber->providesCallback<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthImageT>&, const boost::shared_ptr<ImageT>&)>())
 				{
 					boost::function<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthImageT>&, const boost::shared_ptr<ImageT>&)> f_image =
 						boost::bind(&FileOutput::WriteImage, this, _1, _2, _3);

@@ -33,6 +33,7 @@ namespace pcl
 		typedef void (signal_Kinect2_PointT)(const boost::shared_ptr<const PointCloud<PointT>>&);
 		typedef void (signal_Kinect2_ImageDepth)(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthImageT>&, float reciprocalFocalLength);
 		typedef void (signal_Kinect2_ImageDepthImage)(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthImageT>&, const boost::shared_ptr<ImageT>&);
+		typedef void (signal_Kinect2_ImageDepthImageDepth)(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthImageT>&, const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthImageT>&);
 
 		Kinect2Grabber()
 			: sensor(nullptr)
@@ -132,6 +133,7 @@ namespace pcl
 			signal_PointT = createSignal<signal_Kinect2_PointT>();
 			signal_ImageDepth = createSignal<signal_Kinect2_ImageDepth>();
 			signal_ImageDepthImage = createSignal<signal_Kinect2_ImageDepthImage>();
+			signal_ImageDepthImageDepth = createSignal<signal_Kinect2_ImageDepthImageDepth>();
 		}
 
 		~Kinect2Grabber() throw()
@@ -141,6 +143,7 @@ namespace pcl
 			disconnect_all_slots<signal_Kinect2_PointT>();
 			disconnect_all_slots<signal_Kinect2_ImageDepth>();
 			disconnect_all_slots<signal_Kinect2_ImageDepthImage>();
+			disconnect_all_slots<signal_Kinect2_ImageDepthImageDepth>();
 
 			// End Processing
 			if (sensor){
@@ -251,14 +254,17 @@ namespace pcl
 					mapping_updated = false;
 
 					if (signal_PointT->num_slots() > 0) {
-						signal_PointT->operator()(convertToPointCloud(&colorBuffer[0], &depthBuffer[0]));
+						signal_PointT->operator()(convertToPointCloud(&colorBuffer[0]));
 					}
 					
 					if (signal_ImageDepth->num_slots() > 0)
-						signal_ImageDepth->operator()(convertColorImage(colorBuffer), convertDepthImage(depthBuffer), 1.0);
+						signal_ImageDepth->operator()(convertColorImageReg(colorBuffer), convertDepthImage(depthBuffer), 1.0);
 					
 					if (signal_ImageDepthImage->num_slots() > 0)
-						signal_ImageDepthImage->operator()(convertColorImage(colorBuffer), convertDepthImage(depthBuffer), convertColorImageOrig(colorBuffer));
+						signal_ImageDepthImage->operator()(convertColorImageReg(colorBuffer), convertDepthImage(depthBuffer), convertColorImageOrig(colorBuffer));
+
+					if (signal_ImageDepthImageDepth->num_slots() > 0)
+						signal_ImageDepthImageDepth->operator()(convertColorImageOrig(colorBuffer), convertDepthImage(depthBuffer), convertColorImageReg(colorBuffer), convertDepthImageReg(depthBuffer));
 				}
 			}
 		}
@@ -282,10 +288,13 @@ namespace pcl
 			}
 		}
 
+		bool mapping_updated;
+
 	protected:
 		boost::signals2::signal<signal_Kinect2_PointT>* signal_PointT;
 		boost::signals2::signal<signal_Kinect2_ImageDepthImage>* signal_ImageDepthImage;
 		boost::signals2::signal<signal_Kinect2_ImageDepth>* signal_ImageDepth;
+		boost::signals2::signal<signal_Kinect2_ImageDepthImageDepth>* signal_ImageDepthImageDepth;//original + registered images
 
 		vector<unsigned char> color_buffer, orig_buffer;
 		vector<unsigned short> depth_buffer;
@@ -317,7 +326,6 @@ namespace pcl
 		vector<CameraSpacePoint> camera_space_points;
 		vector<ColorSpacePoint> color_space_points;
 		bool data_ready;
-		bool mapping_updated;
 
 		boost::shared_ptr<ImageT> convertColorImageOrig(const std::vector<RGBQUAD>& buffer)
 		{
@@ -338,9 +346,9 @@ namespace pcl
 			return ToImageRGB24<ImageT>(&orig_buffer[0], colorWidth, colorHeight, color_timestamp / 10);
 		}
 
-		boost::shared_ptr<ImageT> convertColorImage(const std::vector<RGBQUAD>& buffer)
+		boost::shared_ptr<ImageT> convertColorImageReg(const std::vector<RGBQUAD>& buffer)
 		{
-			UpdateMapping();
+			UpdateMapping(depthBuffer);
 
 			int color_size = colorWidth*colorHeight;
 			int depth_size = depthWidth*depthHeight;
@@ -348,10 +356,9 @@ namespace pcl
 			color_buffer.resize(depth_size * 3);
 
 			unsigned char* pt = &color_buffer[0];
-			CameraSpacePoint* csp = &camera_space_points[0];
 			ColorSpacePoint* colsp = &color_space_points[0];
 
-			for (int i = 0; i < depth_size; i++, csp++, colsp++)
+			for (int i = 0; i < depth_size; i++, colsp++)
 			{
 				int color_ind = (int)(colsp->X + 0.5) + (int)(colsp->Y + 0.5)*colorWidth;
 
@@ -388,9 +395,9 @@ namespace pcl
 			return ToDepthImage<DepthImageT>(&buffer[0], depthWidth, depthHeight, intrinsics.FocalLengthX, depth_timestamp / 10);
 		}
 
-		boost::shared_ptr<const PointCloud<PointT> > convertToPointCloud(RGBQUAD* colorBuffer, UINT16* depthBuffer)
+		boost::shared_ptr<const PointCloud<PointT> > convertToPointCloud(RGBQUAD* colorBuffer)
 		{
-			UpdateMapping();
+			UpdateMapping(depthBuffer);
 
 			int color_size = colorWidth*colorHeight;
 			int cloud_size = depthWidth*depthHeight;
@@ -434,12 +441,13 @@ namespace pcl
 			return cloud;
 		}
 
-		void UpdateMapping()
+		void UpdateMapping(const std::vector<unsigned short>& depth_buffer)
 		{
 			if (mapping_updated)
 				return;
 
-			int depth_size = depthWidth*depthHeight;
+			int depth_size = depth_buffer.size();
+			int color_size = colorWidth*colorHeight;
 
 			if (camera_space_points.size() != depth_size)
 				camera_space_points.resize(depth_size);
@@ -447,11 +455,48 @@ namespace pcl
 			if (color_space_points.size() != depth_size)
 				color_space_points.resize(depth_size);
 
-			mapper->MapDepthFrameToCameraSpace(depth_size, &depthBuffer[0], camera_space_points.size(), &camera_space_points[0]);
-			mapper->MapDepthFrameToColorSpace(depth_size, &depthBuffer[0], color_space_points.size(), &color_space_points[0]);
+			if (depth_space_points.size() != color_size)
+				depth_space_points.resize(color_size);
+
+			mapper->MapDepthFrameToCameraSpace(depth_size, &depth_buffer[0], camera_space_points.size(), &camera_space_points[0]);
+			mapper->MapDepthFrameToColorSpace(depth_size, &depth_buffer[0], color_space_points.size(), &color_space_points[0]);
+			mapper->MapColorFrameToDepthSpace(depth_size, &depth_buffer[0], depth_space_points.size(), &depth_space_points[0]);
 
 			mapping_updated = true;
 		}
+
+		public:
+			boost::shared_ptr<DepthImageT> convertDepthImageReg(const std::vector<UINT16>& buffer)
+			{
+				UpdateMapping(buffer);
+
+				int color_size = colorWidth*colorHeight;
+				int depth_size = depthWidth*depthHeight;
+
+				depth_buffer.resize(color_size);
+
+				unsigned short* pt = &depth_buffer[0];
+				DepthSpacePoint* depthsp = &depth_space_points[0];
+
+				for (int i = 0; i < color_size; i++, depthsp++)
+				{
+					int depth_ind = (int)(depthsp->X + 0.5) + (int)(depthsp->Y + 0.5)*depthWidth;
+
+					if ((depth_ind >= 0) && (depth_ind < depth_size))
+						*pt++ = buffer[depth_ind];
+					else
+						*pt++ = 0;
+				}
+
+				CameraIntrinsics intrinsics;
+				mapper->GetDepthCameraIntrinsics(&intrinsics);
+
+				//parameters are not available during first couple of seconds
+				if (!intrinsics.FocalLengthX)
+					intrinsics.FocalLengthX = 364.82281494140625;
+
+				return ToDepthImage<DepthImageT>(&depth_buffer[0], colorWidth, colorHeight, intrinsics.FocalLengthX, depth_timestamp / 10);
+			}
 
 	};
 
