@@ -56,9 +56,9 @@ namespace pcl
 
 			for (int i = 0; i < image_size; i++)
 			{
-				*bf++ = *color_r++;
-				*bf++ = *color_g++;
 				*bf++ = *color_b++;
+				*bf++ = *color_g++;
+				*bf++ = *color_r++;
 			}
 
 			boost::filesystem::path path(filename);

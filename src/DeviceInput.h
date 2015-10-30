@@ -201,7 +201,7 @@ namespace pcl
 			if (!grabber && (supported_platforms[platform] == KINECT2_NATIVE_PLATFORM))
 			{
 #ifdef HAVE_OPENCV
-				grabber = new Kinect2Grabber<PointXYZRGBA, cv::Mat, cv::Mat>();
+				grabber = new Kinect2Grabber<PointXYZRGBA, CvMatExt, CvMatExt>();
 #elif HAVE_OPENNI2
 				grabber = new Kinect2Grabber<PointXYZRGBA, io::Image, io::DepthImage>();
 #elif HAVE_OPENNI

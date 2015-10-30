@@ -9,6 +9,7 @@
 #include <pcl/io/openni_camera/openni_depth_image.h>
 #endif
 
+#include "ImageUtils.h"
 #include "BasicViewer.h"
 #include "FileOutput.h"
 #include "BasicGrabber.h"
@@ -31,6 +32,7 @@ void print_help()
 	cerr << "       0 - pclzf" << endl;
 	cerr << "       1 - pcd" << endl;
 	cerr << "       2 - png" << endl;
+	cerr << "       3 - png registered" << endl;
 	cerr << "  -h : print this message" << endl;
 }
 
@@ -45,8 +47,8 @@ int main(int argc, char **argv)
 	typedef PointXYZRGBA PointT;
 	BasicGrabber<PointT> grabber;
 #ifdef HAVE_OPENCV
-	FileOutput<PointT, cv::Mat, cv::Mat> writer;
-	BasicViewer<PointT, cv::Mat, cv::Mat> viewer;
+	FileOutput<PointT, CvMatExt, CvMatExt> writer;
+	BasicViewer<PointT, CvMatExt, CvMatExt> viewer;
 #elif HAVE_OPENNI2
 	FileOutput<PointT, io::Image, io::DepthImage> writer;
 	BasicViewer<PointT, io::Image, io::DepthImage> viewer;

@@ -41,7 +41,7 @@ namespace pcl
 				else if (FilesInDir(dir, ".pclzf"))
 				{
 #ifdef HAVE_OPENCV
-					grabber = new ImageGrabberExt<PointT, cv::Mat, cv::Mat>(file_name, frames_per_second, repeat, true);
+					grabber = new ImageGrabberExt<PointT, CvMatExt, CvMatExt>(file_name, frames_per_second, repeat, true);
 #elif HAVE_OPENNI2
 					grabber = new ImageGrabberExt<PointT, io::Image, io::DepthImage>(file_name, frames_per_second, repeat, true);
 #elif HAVE_OPENNI
@@ -52,7 +52,7 @@ namespace pcl
 				else if (FilesInDir(dir, ".png"))
 				{
 #ifdef HAVE_OPENCV
-					grabber = new ImageGrabberExt<PointT, cv::Mat, cv::Mat>(file_name, frames_per_second, repeat, false);
+					grabber = new ImageGrabberExt<PointT, CvMatExt, CvMatExt>(file_name, frames_per_second, repeat, false);
 #elif HAVE_OPENNI2
 					grabber = new ImageGrabberExt<PointT, io::Image, io::DepthImage>(file_name, frames_per_second, repeat, false);
 #elif HAVE_OPENNI

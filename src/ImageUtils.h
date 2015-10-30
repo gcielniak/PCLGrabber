@@ -23,6 +23,21 @@
 
 namespace pcl
 {
+#ifdef HAVE_OPENCV
+	class CvMatExt {
+		public:
+			CvMatExt(const cv::Mat& image, long long timestamp, double focal_length=0.0) {
+				this->image = image;
+				this->timestamp = timestamp;
+				this->focal_length = focal_length;
+			}
+
+			cv::Mat image;
+			long long timestamp;
+			double focal_length;
+	};
+#endif
+	
 	template < typename ImageT >
 	boost::shared_ptr<ImageT> ToImageRGB24(const unsigned char* buffer, int width, int height, long long timestamp)
 	{
@@ -63,9 +78,9 @@ namespace pcl
 
 #ifdef HAVE_OPENCV
 	template <>
-	boost::shared_ptr<cv::Mat> ToImageRGB24<cv::Mat>(const unsigned char* buffer, int width, int height, long long timestamp)
+	boost::shared_ptr<CvMatExt> ToImageRGB24<CvMatExt>(const unsigned char* buffer, int width, int height, long long timestamp)
 	{
-		return boost::make_shared<cv::Mat>(height, width, CV_8UC3, (void*)buffer, width * 3);
+		return boost::make_shared<CvMatExt>(cv::Mat(height, width, CV_8UC3, (void*)buffer, width * 3), timestamp);
 	}
 #endif
 
@@ -109,9 +124,9 @@ namespace pcl
 
 #ifdef HAVE_OPENCV
 	template <>
-	boost::shared_ptr<cv::Mat> ToDepthImage<cv::Mat>(const unsigned short* buffer, int width, int height, float focal_length, long long timestamp)
+	boost::shared_ptr<CvMatExt> ToDepthImage<CvMatExt>(const unsigned short* buffer, int width, int height, float focal_length, long long timestamp)
 	{
-		return boost::make_shared<cv::Mat>(height, width, CV_16UC1, (void*)buffer, width * 2);
+		return boost::make_shared<CvMatExt>(cv::Mat(height, width, CV_16UC1, (void*)buffer, width * 2), timestamp, focal_length);
 	}
 #endif
 
@@ -152,9 +167,9 @@ namespace pcl
 
 #ifdef HAVE_OPENCV
 	template <>
-	unsigned char* GetRGBBuffer(const boost::shared_ptr<cv::Mat>& image)
+	unsigned char* GetRGBBuffer(const boost::shared_ptr<CvMatExt>& image)
 	{
-		return (unsigned char*)image->data;
+		return (unsigned char*)image->image.data;
 	}
 #endif
 
@@ -181,9 +196,9 @@ namespace pcl
 
 #ifdef HAVE_OPENCV
 	template <>
-	unsigned short* GetDepthBuffer(const boost::shared_ptr<cv::Mat>& image)
+	unsigned short* GetDepthBuffer(const boost::shared_ptr<CvMatExt>& image)
 	{
-		return (unsigned short*)image->data;
+		return (unsigned short*)image->image.data;
 	}
 #endif
 
@@ -210,9 +225,9 @@ namespace pcl
 
 #ifdef HAVE_OPENCV
 	template <>
-	float GetFocalLength(const boost::shared_ptr<cv::Mat>& image)
+	float GetFocalLength(const boost::shared_ptr<CvMatExt>& image)
 	{
-		return 0;
+		return image->focal_length;
 	}
 #endif
 
@@ -251,9 +266,9 @@ namespace pcl
 
 #ifdef HAVE_OPENCV
 	template <>
-	long long GetTimeStamp(const boost::shared_ptr<cv::Mat>& image)
+	long long GetTimeStamp(const boost::shared_ptr<CvMatExt>& image)
 	{
-		return 0;
+		return image->timestamp;
 	}
 #endif
 
@@ -292,9 +307,9 @@ namespace pcl
 
 #ifdef HAVE_OPENCV
 	template <>
-	int GetWidth(const boost::shared_ptr<cv::Mat>& image)
+	int GetWidth(const boost::shared_ptr<CvMatExt>& image)
 	{
-		return image->cols;
+		return image->image.cols;
 	}
 #endif
 
@@ -333,9 +348,9 @@ namespace pcl
 
 #ifdef HAVE_OPENCV
 	template <>
-	int GetHeight(const boost::shared_ptr<cv::Mat>& image)
+	int GetHeight(const boost::shared_ptr<CvMatExt>& image)
 	{
-		return image->rows;
+		return image->image.rows;
 	}
 #endif
 

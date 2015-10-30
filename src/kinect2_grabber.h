@@ -159,6 +159,12 @@ namespace pcl
 			thread.join();
 		}
 
+		bool IsAvailable() {
+			BOOLEAN value;
+			sensor->get_IsAvailable(&value);
+			return (value == 1);
+		}
+
 		void start()
 		{
 			// Open Color Frame Reader
@@ -264,7 +270,7 @@ namespace pcl
 						signal_ImageDepthImage->operator()(convertColorImageReg(colorBuffer), convertDepthImage(depthBuffer), convertColorImageOrig(colorBuffer));
 
 					if (signal_ImageDepthImageDepth->num_slots() > 0)
-						signal_ImageDepthImageDepth->operator()(convertColorImageOrig(colorBuffer), convertDepthImage(depthBuffer), convertColorImageReg(colorBuffer), convertDepthImageReg(depthBuffer));
+						signal_ImageDepthImageDepth->operator()(convertColorImageOrig(colorBuffer), convertDepthImage(depthBuffer), convertColorImageReg(colorBuffer), convertDepthImageReg(depthBuffer, depth_timestamp / 10));
 				}
 			}
 		}
@@ -466,7 +472,7 @@ namespace pcl
 		}
 
 		public:
-			boost::shared_ptr<DepthImageT> convertDepthImageReg(const std::vector<UINT16>& buffer)
+			boost::shared_ptr<DepthImageT> convertDepthImageReg(const std::vector<UINT16>& buffer, long long timestamp)
 			{
 				UpdateMapping(buffer);
 
@@ -495,7 +501,7 @@ namespace pcl
 				if (!intrinsics.FocalLengthX)
 					intrinsics.FocalLengthX = 364.82281494140625;
 
-				return ToDepthImage<DepthImageT>(&depth_buffer[0], colorWidth, colorHeight, intrinsics.FocalLengthX, depth_timestamp / 10);
+				return ToDepthImage<DepthImageT>(&depth_buffer[0], colorWidth, colorHeight, intrinsics.FocalLengthX, timestamp);
 			}
 
 	};

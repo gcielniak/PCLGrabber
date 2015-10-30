@@ -86,7 +86,7 @@ namespace pcl
 				signal_ImageDepthImage->operator()(ToRGB24Image(file_name), ToDepthImage(file_name), ToRGB24OrigImage(file_name));
 			}
 #ifdef HAVE_KINECT2_NATIVE
-			if (signal_ImageDepthImageDepth->num_slots() > 0)
+			if ((signal_ImageDepthImageDepth->num_slots() > 0) && grabber.IsAvailable())
 			{
 				string file_name = dir + "\\" + this->getDepthFileNameAtIndex(file_index);
 				signal_ImageDepthImageDepth->operator()(ToRGB24Image(file_name), ToDepthImage(file_name), ToRGB24OrigImage(file_name), ToDepthImageReg(file_name));
@@ -160,12 +160,12 @@ namespace pcl
 
 			depth_reader.readParameters(xml_file_name);
 			params = depth_reader.getParameters();
-			depth_reader.read(depth_file_name, depth_buffer, params.focal_length_x);
+			boost::shared_ptr<DepthImageT> depth_orig = depth_reader.read(depth_file_name, depth_buffer, params.focal_length_x);
 
 			//perform depth2rgb registration
 
 			grabber.mapping_updated = false;
-			return grabber.convertDepthImageReg(depth_buffer);
+			return grabber.convertDepthImageReg(depth_buffer, GetTimeStamp(depth_orig));
 		}
 #endif
 	};
