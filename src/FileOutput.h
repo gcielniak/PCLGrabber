@@ -47,9 +47,36 @@ namespace pcl
 			if (!boost::filesystem::exists(boost::filesystem::path(output_data_path)))
 				boost::filesystem::create_directories(boost::filesystem::path(output_data_path));
 
+			boost::posix_time::ptime current_time = boost::posix_time::microsec_clock::local_time();
+
+			long long cloud_timestamp = cloud->header.stamp;
+
+			if (!sensor_timestamp_start)//first frame
+			{
+				sensor_time_start = current_time;
+				sensor_timestamp_start = cloud_timestamp;
+			}
+
+			long long cloud_timedelta = cloud_timestamp - sensor_timestamp_start;
+
+			boost::posix_time::ptime corrected_time = sensor_time_start + boost::posix_time::microseconds(cloud_timedelta);
+
+			string time_string;
+
+			if (simulated_time)
+			{
+				time_string = boost::posix_time::to_iso_string(from_us(cloud_timestamp));
+			}
+			else
+			{
+				time_string = boost::posix_time::to_iso_string(corrected_time);
+			}
+
 			std::stringstream file_name;
-			file_name << "frame_" << timestamp << "_depth.pcd";
+			file_name << "frame_" << time_string << "_depth.pcd";
 			io::savePCDFile<PointT>(output_data_path + file_name.str(), *cloud, true);
+
+//			std::cerr << "PCD file written: " << file_name.str() << std::endl;
 
 			FPS_CALC("WRITE PCD");
 		}
