@@ -68,7 +68,11 @@ int main(int argc, char **argv)
 		else if ((strcmp(argv[i], "-p") == 0) && (i < (argc - 1))) { grabber.Platform(atoi(argv[++i])); }
 		else if ((strcmp(argv[i], "-d") == 0) && (i < (argc - 1))) { grabber.Device(atoi(argv[++i])); }
 		else if ((strcmp(argv[i], "-w") == 0) && (i < (argc - 1))) { writer.Format(atoi(argv[++i])); }
-		else if ((strcmp(argv[i], "-f") == 0) && (i < (argc - 1))) { grabber.File(argv[++i]); writer.SimulatedTime(true); }
+		else if ((strcmp(argv[i], "-f") == 0) && (i < (argc - 1))) {
+			grabber.File(argv[++i]); 
+			writer.SimulatedTime(true);
+			writer.OutputDir(".\\data\\" + boost::filesystem::path(argv[i]).filename().string() + "_copy\\");
+		}
 		else if ((strcmp(argv[i], "-fps") == 0) && (i < (argc - 1))) { grabber.FPS(atof(argv[++i])); }
 		else if (strcmp(argv[i], "-r") == 0) { grabber.Repeat(true); }
 		else if (strcmp(argv[i], "-vc") == 0) { viewer.VisualiseCloudPoint(true); }

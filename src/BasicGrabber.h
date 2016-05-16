@@ -17,7 +17,7 @@ namespace pcl
 		bool repeat;
 
 	public:
-		BasicGrabber() : platform(0), device(0), grabber(0), fps(0.), repeat(false) 
+		BasicGrabber() : platform(0), device(0), grabber(0), fps(30.), repeat(false) 
 		{
 		}
 

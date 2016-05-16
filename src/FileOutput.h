@@ -73,7 +73,7 @@ namespace pcl
 			}
 
 			std::stringstream file_name;
-			file_name << "frame_" << time_string << "_depth.pcd";
+			file_name << "frame_" << time_string << ".pcd";
 			io::savePCDFile<PointT>(output_data_path + file_name.str(), *cloud, true);
 
 //			std::cerr << "PCD file written: " << file_name.str() << std::endl;
