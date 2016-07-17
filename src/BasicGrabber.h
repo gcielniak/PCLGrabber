@@ -15,11 +15,10 @@ namespace pcl
 		FileInput<PointT> file_input;
 		double fps;
 		bool repeat;
+		bool swap_rb_channels;
 
 	public:
-		BasicGrabber() : platform(0), device(0), grabber(0), fps(30.), repeat(false) 
-		{
-		}
+		BasicGrabber() : platform(0), device(0), grabber(0), fps(30.), repeat(false), swap_rb_channels(false) {}
 
 		~BasicGrabber()
 		{
@@ -32,6 +31,8 @@ namespace pcl
 
 		void File(string value) { file_name = value; device = -1; }
 
+		void SwapRBChannels(bool value) { swap_rb_channels = value; }
+
 		void FPS(double value) { fps = value; }
 
 		void Repeat(bool value) { repeat = value; }
@@ -41,7 +42,7 @@ namespace pcl
 		void Init()
 		{
 			if (device == -1)
-				grabber = file_input.GetGrabber(file_name, fps, repeat);
+				grabber = file_input.GetGrabber(file_name, fps, repeat, swap_rb_channels);
 			else
 				grabber = device_input.GetGrabber(platform, device);
 		}

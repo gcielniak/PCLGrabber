@@ -24,6 +24,7 @@ void print_help()
 	cerr << "  -p : specify the input platform" << endl;
 	cerr << "  -d : specify the input device" << endl;
 	cerr << "  -f : use files from the specified directory" << endl;
+	cerr << "  -s : swap red and blue channels (BGR format by default)" << endl;
 	cerr << "-fps : set fps rate for file input" << endl;
 	cerr << "  -r : loop the seuqence for file input" << endl;
 	cerr << " -vc : visualise the cloud point" << endl;
@@ -77,6 +78,7 @@ int main(int argc, char **argv)
 		else if (strcmp(argv[i], "-r") == 0) { grabber.Repeat(true); }
 		else if (strcmp(argv[i], "-vc") == 0) { viewer.VisualiseCloudPoint(true); }
 		else if (strcmp(argv[i], "-vi") == 0) { viewer.VisualiseImages(true); }
+		else if (strcmp(argv[i], "-s") == 0) { grabber.SwapRBChannels(true); }
 		else if (strcmp(argv[i], "-h") == 0) { print_help(); }
 	}
 

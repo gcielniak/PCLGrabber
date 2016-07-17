@@ -23,6 +23,7 @@ namespace pcl
 		vector<unsigned char> color_buffer, orig_buffer;
 		vector<unsigned short> depth_buffer;
 		int file_index;
+		bool swap_rb_channels;
 
 	protected:
 		using Grabber::createSignal;
@@ -39,8 +40,8 @@ namespace pcl
 		ImageGrabberExt(const std::string& dir_,
 			float frames_per_second = 0,
 			bool repeat = false,
-			bool pclzf_mode_ = false) : ImageGrabber<PointT>(dir_, frames_per_second, repeat, pclzf_mode_), dir(dir_), pclzf_mode(pclzf_mode_), file_index(0)
-			, signal_ImageDepth(nullptr), signal_ImageDepthImage(nullptr), signal_ImageDepthImageDepth(nullptr)
+			bool pclzf_mode_ = false, bool swap_rb_channels_=false) : ImageGrabber<PointT>(dir_, frames_per_second, repeat, pclzf_mode_), dir(dir_), pclzf_mode(pclzf_mode_), file_index(0)
+			, signal_ImageDepth(nullptr), signal_ImageDepthImage(nullptr), signal_ImageDepthImageDepth(nullptr), swap_rb_channels(swap_rb_channels_)
 		{
 			boost::function<void(const boost::shared_ptr<const PointCloud<PointT> >&)> f_cloud =
 				boost::bind(&ImageGrabberExt<PointT, ImageT, DepthImageT>::GetImage, this, _1);
@@ -54,15 +55,15 @@ namespace pcl
 		ImageGrabberExt(const std::string& depth_dir,
 			const std::string& rgb_dir,
 			float frames_per_second = 0,
-			bool repeat = false) : ImageGrabber<PointT>(depth_dir, rgb_dir, frames_per_second, repeat), pclzf_mode(false), file_index(0)
-			, signal_ImageDepth(nullptr), signal_ImageDepthImage(nullptr), signal_ImageDepthImageDepth(nullptr)
+			bool repeat = false, bool swap_rb_channels_ = false) : ImageGrabber<PointT>(depth_dir, rgb_dir, frames_per_second, repeat), pclzf_mode(false), file_index(0)
+			, signal_ImageDepth(nullptr), signal_ImageDepthImage(nullptr), signal_ImageDepthImageDepth(nullptr), swap_rb_channels(swap_rb_channels_)
 		{
 		}
 
 		ImageGrabberExt(const std::vector<std::string>& depth_image_files,
 			float frames_per_second = 0,
-			bool repeat = false) : ImageGrabber<PointT>(depth_image_files, frames_per_second, repeat), pclzf_mode(false), file_index(0)
-			, signal_ImageDepth(nullptr), signal_ImageDepthImage(nullptr), signal_ImageDepthImageDepth(nullptr)
+			bool repeat = false, bool swap_rb_channels_ = false) : ImageGrabber<PointT>(depth_image_files, frames_per_second, repeat), pclzf_mode(false), file_index(0)
+			, signal_ImageDepth(nullptr), signal_ImageDepthImage(nullptr), signal_ImageDepthImageDepth(nullptr), swap_rb_channels(swap_rb_channels_)
 		{
 		}
 
@@ -106,7 +107,12 @@ namespace pcl
 
 			pcl::LZFRGB24ImageReaderExt<ImageT> rgb_reader;
 
-			return rgb_reader.read(color_file_name, color_buffer);
+			pcl::LZFRGB24ImageReaderExt<ImageT>::ColorFormat color_format = pcl::LZFRGB24ImageReaderExt<ImageT>::CF_BGR;
+
+			if (swap_rb_channels)
+				color_format = pcl::LZFRGB24ImageReaderExt<ImageT>::CF_RGB;
+
+			return rgb_reader.read(color_file_name, color_buffer, color_format);
 		}
 
 		boost::shared_ptr<ImageT> ToRGB24OrigImage(const string& file_name)
@@ -120,7 +126,12 @@ namespace pcl
 
 			pcl::LZFRGB24ImageReaderExt<ImageT> rgb_reader;
 
-			return rgb_reader.read(orig_file_name, orig_buffer);
+			pcl::LZFRGB24ImageReaderExt<ImageT>::ColorFormat color_format = pcl::LZFRGB24ImageReaderExt<ImageT>::CF_BGR;
+
+			if (swap_rb_channels)
+				color_format = pcl::LZFRGB24ImageReaderExt<ImageT>::CF_RGB;
+
+			return rgb_reader.read(orig_file_name, orig_buffer, color_format);
 		}
 
 		boost::shared_ptr<DepthImageT> ToDepthImage(const string& file_name)

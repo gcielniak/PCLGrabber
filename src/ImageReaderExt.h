@@ -12,13 +12,18 @@ namespace pcl
 		boost::posix_time::ptime epoch;
 
 	public:
+		enum ColorFormat {
+			CF_RGB,
+			CF_BGR
+		};
+
 		/** Empty constructor */
 		LZFRGB24ImageReaderExt() : io::LZFRGB24ImageReader(), epoch(boost::gregorian::date(1970, 1, 1)) {}
 
 		/** Empty destructor */
 		virtual ~LZFRGB24ImageReaderExt() {}
 
-		boost::shared_ptr<ImageT> read(const std::string &filename, vector<unsigned char>& buffer)
+		boost::shared_ptr<ImageT> read(const std::string &filename, vector<unsigned char>& buffer, const ColorFormat color_format=CF_BGR)
 		{
 			uint32_t uncompressed_size;
 			std::vector<char> compressed_data;
@@ -54,11 +59,21 @@ namespace pcl
 
 			unsigned char *bf = &buffer[0];
 
-			for (int i = 0; i < image_size; i++)
-			{
-				*bf++ = *color_b++;
-				*bf++ = *color_g++;
-				*bf++ = *color_r++;
+			if (color_format == CF_RGB) {
+				for (int i = 0; i < image_size; i++)
+				{
+					*bf++ = *color_r++;
+					*bf++ = *color_g++;
+					*bf++ = *color_b++;
+				}
+			}
+			else if (color_format == CF_BGR) {
+				for (int i = 0; i < image_size; i++)
+				{
+					*bf++ = *color_b++;
+					*bf++ = *color_g++;
+					*bf++ = *color_r++;
+				}
 			}
 
 			boost::filesystem::path path(filename);

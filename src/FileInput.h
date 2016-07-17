@@ -19,7 +19,7 @@ namespace pcl
 	public:
 		FileInput() : grabber(0) {}
 
-		Grabber* GetGrabber(const string& file_name, float frames_per_second = 0, bool repeat = false)
+		Grabber* GetGrabber(const string& file_name, float frames_per_second = 0, bool repeat = false, bool swap_rb_channels=false)
 		{
 			if (grabber)
 				return grabber;
@@ -41,22 +41,22 @@ namespace pcl
 				else if (FilesInDir(dir, ".pclzf"))
 				{
 #ifdef HAVE_OPENCV
-					grabber = new ImageGrabberExt<PointT, CvMatExt, CvMatExt>(file_name, frames_per_second, repeat, true);
+					grabber = new ImageGrabberExt<PointT, CvMatExt, CvMatExt>(file_name, frames_per_second, repeat, true, swap_rb_channels);
 #elif HAVE_OPENNI2
-					grabber = new ImageGrabberExt<PointT, io::Image, io::DepthImage>(file_name, frames_per_second, repeat, true);
+					grabber = new ImageGrabberExt<PointT, io::Image, io::DepthImage>(file_name, frames_per_second, repeat, true, swap_rb_channels);
 #elif HAVE_OPENNI
-					grabber = new ImageGrabberExt<PointT, openni_wrapper::Image, openni_wrapper::DepthImage>(file_name, frames_per_second, repeat, true);
+					grabber = new ImageGrabberExt<PointT, openni_wrapper::Image, openni_wrapper::DepthImage>(file_name, frames_per_second, repeat, true, swap_rb_channels);
 #endif
 					return grabber;
 				}
 				else if (FilesInDir(dir, ".png"))
 				{
 #ifdef HAVE_OPENCV
-					grabber = new ImageGrabberExt<PointT, CvMatExt, CvMatExt>(file_name, frames_per_second, repeat, false);
+					grabber = new ImageGrabberExt<PointT, CvMatExt, CvMatExt>(file_name, frames_per_second, repeat, false, swap_rb_channels);
 #elif HAVE_OPENNI2
-					grabber = new ImageGrabberExt<PointT, io::Image, io::DepthImage>(file_name, frames_per_second, repeat, false);
+					grabber = new ImageGrabberExt<PointT, io::Image, io::DepthImage>(file_name, frames_per_second, repeat, false, swap_rb_channels);
 #elif HAVE_OPENNI
-					grabber = new ImageGrabberExt<PointT, openni_wrapper::Image, openni_wrapper::DepthImage>(file_name, frames_per_second, repeat, false);
+					grabber = new ImageGrabberExt<PointT, openni_wrapper::Image, openni_wrapper::DepthImage>(file_name, frames_per_second, repeat, false, swap_rb_channels);
 #endif
 					return grabber;
 				}
