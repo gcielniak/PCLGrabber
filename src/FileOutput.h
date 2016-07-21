@@ -74,7 +74,7 @@ namespace pcl
 
 			std::stringstream file_name;
 			file_name << "frame_" << time_string << ".pcd";
-			io::savePCDFile<PointT>(output_data_path + file_name.str(), *cloud, true);
+			io::savePCDFileBinaryCompressed<PointT>(output_data_path + file_name.str(), *cloud);
 
 //			std::cerr << "PCD file written: " << file_name.str() << std::endl;
 
