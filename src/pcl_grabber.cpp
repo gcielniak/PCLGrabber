@@ -13,6 +13,7 @@
 #include "BasicViewer.h"
 #include "FileOutput.h"
 #include "BasicGrabber.h"
+#include "Input.h"
 
 using namespace pcl;
 
@@ -39,6 +40,19 @@ void print_help()
 
 int main(int argc, char **argv)
 {
+	OpenNI2Input::ListAllDevices();
+
+	try	{
+		OpenNI2Input input("#1");
+	}
+	catch (pcl::PCLException& exc)
+	{
+		cerr << exc.what() << endl;
+		return 0;
+	}
+
+	return 0;
+
 	if (argc == 1)
 	{
 		print_help();
