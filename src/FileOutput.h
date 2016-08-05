@@ -27,7 +27,6 @@ namespace pcl
 		int image_counter, format;
 		string output_data_path;
 		bool simulated_time;
-		string current_file_name;
 
 	public:
 		FileOutput() : image_counter(0), output_data_path(".\\data\\" + currentDateTime() + "\\"), format(-1), sensor_timestamp_start(0), simulated_time(false) {}
@@ -75,12 +74,7 @@ namespace pcl
 
 			std::stringstream file_name;
 			
-			if (current_file_name != "") {
-				file_name << current_file_name;
-			}
-			else {
-				file_name << "frame_" << time_string << ".pcd";
-			}
+			file_name << "frame_" << time_string << ".pcd";
 
 			io::savePCDFileBinaryCompressed<PointT>(output_data_path + file_name.str(), *cloud);
 
@@ -193,19 +187,8 @@ namespace pcl
 			FPS_CALC("WRITE IMAGE");
 		}
 
-		void UpdateFileName(const std::string& file_name) {
-			current_file_name = boost::filesystem::path(file_name).filename().string();
-		}
-
 		void RegisterCallbacks(Grabber* grabber)
 		{
-			if (grabber->providesCallback<void(const std::string&)>())
-			{
-				boost::function<void(const std::string&)> f_file_name =
-					boost::bind(&FileOutput::UpdateFileName, this, _1);
-				grabber->registerCallback(f_file_name);
-			}
-
 			if ((format == 0) || (format == 2))
 			{
 				if (grabber->providesCallback<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthImageT>&, const boost::shared_ptr<ImageT>&)>())
