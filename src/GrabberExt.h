@@ -193,7 +193,7 @@ namespace pcl
 
 	protected:
 		/**
-		 * Implements a new publish() method that also updates the cloud timestamp based on pcd filename.
+		 * Implements a new publish() method that also updates the cloud timestamp based on the pcd filename.
 		 */
 		virtual void publish(const pcl::PCLPointCloud2& blob, const Eigen::Vector4f& origin, const Eigen::Quaternionf& orientation, const std::string& file_name) const {
 			//
@@ -212,8 +212,7 @@ namespace pcl
 			char timestamp_str[256];
 			int result = std::sscanf(boost::filesystem::basename(filepath).c_str(),
 				"frame_%22s_%*s", timestamp_str);
-			if (result > 0)
-			{
+			if (result > 0) {
 				// Convert to pcl::uint64_t, microseconds since 1970-01-01
 				boost::posix_time::ptime cur_date = boost::posix_time::from_iso_string(timestamp_str);
 				boost::posix_time::ptime zero_date(
