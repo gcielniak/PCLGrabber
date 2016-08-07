@@ -91,13 +91,15 @@ namespace pcl
 
 					for (size_t j = 0; j < nr_of_devices; j++)
 					{
+						boost::shared_ptr<pcl::io::openni2::OpenNI2Device> device = device_manager.getDeviceByIndex(j);
+
 						cerr << " Device " << j << ": ";
-						cerr << device_manager.getDeviceByIndex(j)->getStringID() << endl;
-						cerr << "  depth FL: " << device_manager.getDeviceByIndex(j)->getDepthFocalLength() << endl;
-						cerr << "  color FL: " << device_manager.getDeviceByIndex(j)->getColorFocalLength() << endl;
-						cerr << "  IR FL: " << device_manager.getDeviceByIndex(j)->getIRFocalLength() << endl;
-						cerr << "  baseline: " << device_manager.getDeviceByIndex(j)->getBaseline() << endl;
-						cerr << "  depth reg: " << device_manager.getDeviceByIndex(j)->isDepthRegistered() << endl;
+						cerr << device->getStringID() << endl;
+						cerr << "  depth FL: " << device->getDepthFocalLength() << endl;
+						cerr << "  color FL: " << device->getColorFocalLength() << endl;
+						cerr << "  IR FL: " << device->getIRFocalLength() << endl;
+						cerr << "  baseline: " << device->getBaseline() << endl;
+						cerr << "  depth reg: " << device->isDepthRegistered() << endl;
 					}
 				}
 #endif

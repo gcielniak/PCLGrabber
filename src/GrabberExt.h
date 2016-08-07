@@ -1,5 +1,6 @@
 #pragma once
 #include <pcl/io/image_grabber.h>
+#include <pcl/io/pcd_grabber.h>
 #include "ImageReaderExt.h"
 
 #ifdef HAVE_KINECT2_NATIVE
@@ -179,5 +180,47 @@ namespace pcl
 			return grabber.convertDepthImageReg(depth_buffer, GetTimeStamp(depth_orig));
 		}
 #endif
+	};
+
+	template <typename PointT>
+	class PCDGrabberExt : public PCDGrabber<PointT> {
+	public:
+		PCDGrabberExt(const std::vector<std::string>& pcd_files, float frames_per_second = 0, bool repeat = false) :
+			PCDGrabber(pcd_files, frames_per_second, repeat) {}
+
+		PCDGrabberExt(const std::string& pcd_path, float frames_per_second = 0, bool repeat = false) :
+			PCDGrabber(pcd_path, frames_per_second, repeat) {}
+
+	protected:
+		/**
+		 * Implements a new publish() method that also updates the cloud timestamp based on the pcd filename.
+		 */
+		virtual void publish(const pcl::PCLPointCloud2& blob, const Eigen::Vector4f& origin, const Eigen::Quaternionf& orientation, const std::string& file_name) const {
+			//
+			pcl::uint64_t timestamp;
+			getTimestampFromFilepath(file_name, timestamp);
+
+			pcl::PCLPointCloud2& my_blob = const_cast<pcl::PCLPointCloud2&>(blob);//very naughty!
+			my_blob.header.stamp = timestamp;
+			PCDGrabber::publish(blob, origin, orientation, file_name);
+		}
+
+	public:
+		static bool getTimestampFromFilepath(const std::string &filepath, pcl::uint64_t &timestamp) {
+
+			// For now, we assume the file is of the form frame_[22-char POSIX timestamp]_*
+			char timestamp_str[256];
+			int result = std::sscanf(boost::filesystem::basename(filepath).c_str(),
+				"frame_%22s_%*s", timestamp_str);
+			if (result > 0) {
+				// Convert to pcl::uint64_t, microseconds since 1970-01-01
+				boost::posix_time::ptime cur_date = boost::posix_time::from_iso_string(timestamp_str);
+				boost::posix_time::ptime zero_date(
+					boost::gregorian::date(1970, boost::gregorian::Jan, 1));
+				timestamp = (cur_date - zero_date).total_microseconds();
+				return (true);
+			}
+			return (false);
+		}
 	};
 }

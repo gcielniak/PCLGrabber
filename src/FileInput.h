@@ -3,8 +3,7 @@
 #include <string>
 #include <sstream>
 #include <pcl/exceptions.h>
-#include "ImageGrabberExt.h"
-#include <pcl/io/pcd_grabber.h>
+#include "GrabberExt.h"
 
 using namespace std;
 
@@ -35,7 +34,7 @@ namespace pcl
 
 				if (FilesInDir(dir, ".pcd"))
 				{
-					grabber = new PCDGrabber<PointT>(GetFileNames(dir, ".pcd"), frames_per_second, repeat);
+					grabber = new PCDGrabberExt<PointT>(GetFileNames(dir, ".pcd"), frames_per_second, repeat);
 					return grabber;
 				}
 				else if (FilesInDir(dir, ".pclzf"))
@@ -64,7 +63,7 @@ namespace pcl
 			}
 			else if (boost::filesystem::extension(dir) == ".pcd") //single file
 			{
-				grabber = new PCDGrabber<PointT>(file_name, frames_per_second, repeat);
+				grabber = new PCDGrabberExt<PointT>(file_name, frames_per_second, repeat);
 				return grabber;
 			}
 
