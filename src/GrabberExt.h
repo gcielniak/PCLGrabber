@@ -182,27 +182,91 @@ namespace pcl
 #endif
 	};
 
-	template <typename PointT>
+	template <typename PointT, typename ImageT, typename DepthT>
 	class PCDGrabberExt : public PCDGrabber<PointT> {
 	public:
-		PCDGrabberExt(const std::vector<std::string>& pcd_files, float frames_per_second = 0, bool repeat = false) :
-			PCDGrabber(pcd_files, frames_per_second, repeat) {}
-
 		PCDGrabberExt(const std::string& pcd_path, float frames_per_second = 0, bool repeat = false) :
-			PCDGrabber(pcd_path, frames_per_second, repeat) {}
+			PCDGrabber(GetPCDFileNames(pcd_path), frames_per_second, repeat) {
+			//disconnect the original PCDGrabber signals
+			remove_signal<void(const boost::shared_ptr<openni_wrapper::Image>&, const boost::shared_ptr<openni_wrapper::DepthImage>&, float)>();
+
+			//create new signals
+			image_depth_image_ext_signal_ = createSignal <void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthT>&, float constant)>();
+		}
+
+		template<typename T> 
+		void remove_signal() {
+			std::map<std::string, boost::signals2::signal_base*>::const_iterator signal_it = signals_.find(typeid (T).name());
+			if (signal_it != signals_.end())
+				signals_.erase(signal_it);
+		}
+
+		virtual ~PCDGrabberExt() throw() {
+			disconnect_all_slots<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthT>&, float constant)>();
+		}
 
 	protected:
+		boost::signals2::signal<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthT>&, float constant)>* image_depth_image_ext_signal_;
+
 		/**
 		 * Implements a new publish() method that also updates the cloud timestamp based on the pcd filename.
 		 */
 		virtual void publish(const pcl::PCLPointCloud2& blob, const Eigen::Vector4f& origin, const Eigen::Quaternionf& orientation, const std::string& file_name) const {
-			//
+			typename pcl::PointCloud<PointT>::Ptr cloud(new pcl::PointCloud<PointT>());
+			
+			pcl::fromPCLPointCloud2(blob, *cloud);
+			cloud->sensor_origin_ = origin;
+			cloud->sensor_orientation_ = orientation;
 			pcl::uint64_t timestamp;
 			getTimestampFromFilepath(file_name, timestamp);
+			cloud->header.stamp = timestamp;
 
-			pcl::PCLPointCloud2& my_blob = const_cast<pcl::PCLPointCloud2&>(blob);//very naughty!
-			my_blob.header.stamp = timestamp;
-			PCDGrabber::publish(blob, origin, orientation, file_name);
+			if (signal_->num_slots() > 0)
+				signal_->operator () (cloud);
+
+			if (file_name_signal_->num_slots() > 0)
+				file_name_signal_->operator()(file_name);
+			
+			if (image_depth_image_ext_signal_->num_slots() > 0)
+				image_depth_image_ext_signal_->operator()(ToImage<PointT, ImageT>(cloud),ToDepthImage<PointT, DepthT>(cloud),0.0);
+		}
+
+		static vector<string> GetPCDFileNames(std::string const& path_name) {
+			boost::filesystem::path path(path_name);
+			vector<string> file_names;
+
+			//check if the path is valid
+			if (!boost::filesystem::exists(path))
+				PCL_THROW_EXCEPTION(pcl::IOException, "No valid file name given!\n");
+
+			//scan for pcd files
+			if (boost::filesystem::is_directory(path)) {
+				GetFileNames(path, ".pcd", file_names);
+				if (!file_names.size())
+					PCL_THROW_EXCEPTION(pcl::IOException, "No PCD files in the specified directory!\n");
+			}
+			//add a single pcd file
+			else {
+				file_names.push_back(path_name);
+			}
+			return file_names;
+		}
+
+		static void GetFileNames(boost::filesystem::path const& dir, string const& ext, vector<string>& file_names) {
+			boost::filesystem::directory_iterator pos(dir);
+			boost::filesystem::directory_iterator end;
+
+			for (; pos != end; ++pos) {
+				if (boost::filesystem::is_regular_file(pos->status())) {
+					if (boost::filesystem::extension(*pos) == ext) {
+#if BOOST_FILESYSTEM_VERSION == 3
+						file_names.push_back(pos->path().string());
+#else
+						file_names.push_back(pos->path());
+#endif
+					}
+				}
+			}
 		}
 
 	public:
@@ -222,5 +286,6 @@ namespace pcl
 			}
 			return (false);
 		}
+
 	};
 }

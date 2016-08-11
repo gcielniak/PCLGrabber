@@ -9,7 +9,7 @@ using namespace std;
 
 namespace pcl
 {
-	template <typename PointT>
+	template <typename PointT, typename ImageT, typename DepthT>
 	class FileInput
 	{
 	private:
@@ -34,36 +34,24 @@ namespace pcl
 
 				if (FilesInDir(dir, ".pcd"))
 				{
-					grabber = new PCDGrabberExt<PointT>(GetFileNames(dir, ".pcd"), frames_per_second, repeat);
+					grabber = new PCDGrabberExt<PointT, ImageT, DepthT>(file_name, frames_per_second, repeat);
 					return grabber;
 				}
 				else if (FilesInDir(dir, ".pclzf"))
 				{
-#ifdef HAVE_OPENCV
-					grabber = new ImageGrabberExt<PointT, CvMatExt, CvMatExt>(file_name, frames_per_second, repeat, true, swap_rb_channels);
-#elif HAVE_OPENNI2
-					grabber = new ImageGrabberExt<PointT, io::Image, io::DepthImage>(file_name, frames_per_second, repeat, true, swap_rb_channels);
-#elif HAVE_OPENNI
-					grabber = new ImageGrabberExt<PointT, openni_wrapper::Image, openni_wrapper::DepthImage>(file_name, frames_per_second, repeat, true, swap_rb_channels);
-#endif
+					grabber = new ImageGrabberExt<PointT, ImageT, DepthT>(file_name, frames_per_second, repeat, true, swap_rb_channels);
 					return grabber;
 				}
 				else if (FilesInDir(dir, ".png"))
 				{
-#ifdef HAVE_OPENCV
-					grabber = new ImageGrabberExt<PointT, CvMatExt, CvMatExt>(file_name, frames_per_second, repeat, false, swap_rb_channels);
-#elif HAVE_OPENNI2
-					grabber = new ImageGrabberExt<PointT, io::Image, io::DepthImage>(file_name, frames_per_second, repeat, false, swap_rb_channels);
-#elif HAVE_OPENNI
-					grabber = new ImageGrabberExt<PointT, openni_wrapper::Image, openni_wrapper::DepthImage>(file_name, frames_per_second, repeat, false, swap_rb_channels);
-#endif
+					grabber = new ImageGrabberExt<PointT, ImageT, DepthT>(file_name, frames_per_second, repeat, false, swap_rb_channels);
 					return grabber;
 				}
 				PCL_THROW_EXCEPTION(pcl::IOException, "No recognised files in the directory given!\n");
 			}
 			else if (boost::filesystem::extension(dir) == ".pcd") //single file
 			{
-				grabber = new PCDGrabberExt<PointT>(file_name, frames_per_second, repeat);
+				grabber = new PCDGrabberExt<PointT, ImageT, DepthT>(file_name, frames_per_second, repeat);
 				return grabber;
 			}
 

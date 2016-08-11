@@ -84,12 +84,12 @@ namespace pcl
 
 		bool SpinOnce()
 		{
+			boost::shared_ptr<ImageT> color_image;
+			boost::shared_ptr<DepthImageT> depth_image;
+			boost::shared_ptr<const PointCloud<PointT> > cloud;
+
 			if (!((visualizer && visualizer->wasStopped()) || (depth_viewer && depth_viewer->wasStopped()) || (color_viewer && color_viewer->wasStopped())))
 			{
-				boost::shared_ptr<ImageT> color_image;
-				boost::shared_ptr<DepthImageT> depth_image;
-				boost::shared_ptr<const PointCloud<PointT> > cloud;
-
 				if (visualizer)
 				{
 					if (cloud_mutex.try_lock()){
@@ -132,7 +132,6 @@ namespace pcl
 					depth_viewer->spinOnce();
 					color_viewer->spinOnce();
 				}
-
 				return true;
 			}
 			else
