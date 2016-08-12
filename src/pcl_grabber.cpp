@@ -12,7 +12,7 @@
 #include "ImageUtils.h"
 #include "BasicViewer.h"
 #include "FileOutput.h"
-#include "FileInput.h"
+#include "FileGrabberExt.h"
 #include "DeviceInput.h"
 
 using namespace pcl;
@@ -58,7 +58,7 @@ int main(int argc, char **argv)
 	typedef openni_wrapper::DepthImage DepthT;
 	#endif
 
-	Grabber* grabber;
+	Grabber* grabber = 0;
 	std::string file_name;
 	int device = 0, platform = 0;
 	float fps = 10.0;
@@ -91,21 +91,23 @@ int main(int argc, char **argv)
 		else if (strcmp(argv[i], "-h") == 0) { print_help(); }
 	}
 
-	try
-	{
-		if (file_name != "") {
-			FileInput<PointT, ImageT, DepthT> file_input;
-			grabber = file_input.GetGrabber(file_name, fps, repeat, swap_rb_channels);
-		}
-		else {
-			DeviceInput device_input;
-			grabber = device_input.GetGrabber(platform, device);
+	if (file_name != "") { //select a file grabber (pcd or pclzf/png)
+		try { grabber = new PCDGrabberExt<PointT, ImageT, DepthT>(file_name, fps, repeat); }
+		catch (pcl::PCLException&) {}
+
+		if (!grabber) {
+			try { grabber = new ImageGrabberExt<PointT, ImageT, DepthT>(file_name, fps, repeat, swap_rb_channels); }
+			catch (pcl::PCLException&) {}
 		}
 	}
-	catch (pcl::PCLException&)
-	{
+	else { //select device
+		DeviceInput device_input;
+		grabber = device_input.GetGrabber(platform, device);
+	}
+
+	if (!grabber) {
 		cerr << "Could not initialise the specified input." << endl;
-		return 0;	
+		return 0;
 	}
 
 	viewer.RegisterCallbacks(grabber);
