@@ -101,8 +101,8 @@ int main(int argc, char **argv)
 		}
 	}
 	else { //select device
-		DeviceInput device_input;
-		grabber = device_input.GetGrabber(platform, device);
+		DeviceInput* device_input = new DeviceInput();
+		grabber = device_input->GetGrabber(platform, device);
 	}
 
 	if (!grabber) {
