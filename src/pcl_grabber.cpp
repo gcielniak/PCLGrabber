@@ -115,7 +115,7 @@ int main(int argc, char **argv)
 
 	grabber->start();
 
-	while (viewer.SpinOnce() && grabber->isRunning())
+	while (viewer.SpinOnce())
 		;
 
 	grabber->stop();

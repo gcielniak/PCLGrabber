@@ -129,8 +129,8 @@ namespace pcl
 					if (color_image)
 						color_viewer->showRGBImage(GetRGBBuffer(color_image), GetWidth(color_image), GetHeight(color_image));
 
-					depth_viewer->spinOnce();
-					color_viewer->spinOnce();
+					depth_viewer->spinOnce(100);
+					color_viewer->spinOnce(100);
 				}
 				return true;
 			}

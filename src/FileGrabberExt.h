@@ -83,40 +83,39 @@ namespace pcl
 	protected:
 		bool pclzf_mode;
 		string dir;
-		vector<unsigned char> color_buffer, orig_buffer;
-		vector<unsigned short> depth_buffer;
-		int file_index;
 		bool swap_rb_channels;
 
 	protected:
 		boost::signals2::signal<Signal_ImageDepthImage>* signal_ImageDepthImage;
 		boost::signals2::signal<Signal_ImageDepthImageDepth>* signal_ImageDepthImageDepth;
-#ifdef HAVE_KINECT2_NATIVE
-		Kinect2Grabber<PointT, ImageT, DepthT> grabber;
-#endif
 
 	protected:
 		/**
 		* Implements a new publish() method that generates also images
 		*/
-		virtual void publish(const pcl::PCLPointCloud2& blob, const Eigen::Vector4f& origin, const Eigen::Quaternionf& orientation) {
+		virtual void publish(const pcl::PCLPointCloud2& blob, const Eigen::Vector4f& origin, const Eigen::Quaternionf& orientation) const {
 			ImageGrabber::publish(blob, origin, orientation);
+
+			static int file_index = 0;
+
+			static vector<unsigned char> image_buffer, image_orig_buffer;
+			static vector<unsigned short> depth_buffer, depth_reg_buffer;
 
 			boost::shared_ptr<DepthT> depth, depth_reg;
 			boost::shared_ptr<ImageT> image, image_orig;
 			string file_name = dir + "\\" + getDepthFileNameAtIndex(file_index);
 
 			if (signal_Depth->num_slots() || signal_ImageDepth->num_slots() || signal_ImageDepthImage->num_slots() || signal_ImageDepthImageDepth->num_slots())
-				depth = ToDepthImage(file_name);
+				depth = ToDepthImage(file_name, depth_buffer);
 
 			if (signal_Image->num_slots() || signal_ImageDepth->num_slots() || signal_ImageDepthImage->num_slots() || signal_ImageDepthImageDepth->num_slots())
-				image = ToRGB24Image(file_name);
+				image = ToRGB24Image(file_name, image_buffer);
 
 			if (signal_ImageDepthImage->num_slots() || signal_ImageDepthImageDepth->num_slots())
-				image_orig = ToRGB24Image(file_name,"orig");
+				image_orig = ToRGB24Image(file_name, image_orig_buffer, "orig");
 
 			if (signal_ImageDepthImageDepth->num_slots())
-				depth_reg = ToDepthImage(file_name, true);
+				depth_reg = ToDepthImage(file_name, depth_reg_buffer, true);
 
 			if (signal_Depth->num_slots())
 				signal_Depth->operator()(depth);
@@ -138,7 +137,7 @@ namespace pcl
 
 	public:
 		ImageGrabberExt(const std::string& dir_, float frames_per_second = 0, bool repeat = false, bool swap_rb_channels_ = false) :
-			ImageGrabber<PointT>(GetFileNames(dir_), frames_per_second, repeat), dir(dir_), file_index(0), swap_rb_channels(swap_rb_channels_)
+			ImageGrabber<PointT>(CheckFiles(dir_), frames_per_second, repeat, pclzf_mode), dir(dir_), swap_rb_channels(swap_rb_channels_)
 		{
 			signal_Depth = createSignal<Signal_Depth>();
 			signal_Image = createSignal<Signal_Image>();
@@ -158,12 +157,15 @@ namespace pcl
 			disconnect_all_slots<Signal_ImageDepthImageDepth>();
 		}
 
-		boost::shared_ptr<ImageT> ToRGB24Image(const string& file_name, const string& postfix="rgb")
+		boost::shared_ptr<ImageT> ToRGB24Image(const string& file_name, vector<unsigned char>& color_buffer, const string& postfix = "rgb") const
 		{
 			string color_file_name = file_name;
 			color_file_name.replace(color_file_name.end() - 5, color_file_name.end(), postfix);
-			if (pclzf_mode)
+			if (pclzf_mode) {
 				color_file_name += ".pclzf";
+				if (postfix == "orig")
+					color_file_name += "_";
+			}
 			else
 				color_file_name += ".png";
 
@@ -177,7 +179,7 @@ namespace pcl
 			return rgb_reader.read(color_file_name, color_buffer, color_format);
 		}
 
-		boost::shared_ptr<DepthT> ToDepthImage(const string& file_name, bool registered=false)
+		boost::shared_ptr<DepthT> ToDepthImage(const string& file_name, vector<unsigned short>& depth_buffer, bool registered=false) const
 		{
 			string depth_file_name = file_name;
 			if (pclzf_mode)
@@ -197,6 +199,7 @@ namespace pcl
 
 			if (registered) {
 #ifdef HAVE_KINECT2_NATIVE
+				Kinect2Grabber<PointT, ImageT, DepthT> grabber;
 				//perform depth2rgb registration
 				if (grabber.IsAvailable()) {
 					grabber.mapping_updated = false;
@@ -236,6 +239,29 @@ namespace pcl
 				PCL_THROW_EXCEPTION(pcl::IOException, "No PCLZF/PNG files in the specified directory!\n");
 
 			return file_names;
+		}
+
+		string const& CheckFiles(std::string const& path_name) {
+			pclzf_mode = true;
+			vector<string> file_names;
+			boost::filesystem::path path(path_name);
+
+			//check if the path is valid
+			if (!boost::filesystem::exists(path))
+				PCL_THROW_EXCEPTION(pcl::IOException, "No valid file name given!\n");
+
+			if (boost::filesystem::is_directory(path))
+				FileGrabberUtils::FileNamebyExt(path, ".pclzf", file_names); //scan for pclzf files
+
+			if (!file_names.size()) {
+				FileGrabberUtils::FileNamebyExt(path, ".png", file_names); //scan for png files
+				pclzf_mode = false;
+			}
+
+			if (!file_names.size())
+				PCL_THROW_EXCEPTION(pcl::IOException, "No PCLZF/PNG files in the specified directory!\n");
+
+			return path_name;
 		}
 	};
 
