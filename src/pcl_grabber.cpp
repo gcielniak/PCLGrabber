@@ -92,11 +92,11 @@ int main(int argc, char **argv)
 	}
 
 	if (file_name != "") { //select a file grabber (pcd or pclzf/png)
-		try { grabber = new PCDGrabberExt<PointT, ImageT, DepthT>(file_name, fps, repeat); }
+		try { grabber = new PCLGrabber::PCDGrabberExt<PointT, ImageT, DepthT>(file_name, fps, repeat); }
 		catch (pcl::PCLException&) {}
 
 		if (!grabber) {
-			try { grabber = new ImageGrabberExt<PointT, ImageT, DepthT>(file_name, fps, repeat, swap_rb_channels); }
+			try { grabber = new PCLGrabber::ImageGrabberExt<PointT, ImageT, DepthT>(file_name, fps, repeat, swap_rb_channels); }
 			catch (pcl::PCLException&) {}
 		}
 	}
