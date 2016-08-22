@@ -9,7 +9,7 @@
 
 namespace pcl
 {
-	template <typename PointT, typename ImageT, typename DepthImageT>
+	template <typename PointT, typename ImageT, typename DepthT>
 	class BasicViewer
 	{
 		bool vis_cloud, vis_images;
@@ -17,7 +17,7 @@ namespace pcl
 
 		visualization::ImageViewer *depth_viewer, *color_viewer;
 		boost::mutex cloud_mutex, image_mutex;
-		boost::shared_ptr<DepthImageT> depth_image_;
+		boost::shared_ptr<DepthT> depth_image_;
 		boost::shared_ptr<ImageT> color_image_;
 		boost::shared_ptr<const PointCloud<PointT> > cloud_;
 
@@ -37,7 +37,7 @@ namespace pcl
 			FPS_CALC("CLOUD_VIS");
 		}
 
-		void image_callback(const boost::shared_ptr<ImageT>& color_image, const boost::shared_ptr<DepthImageT>& depth_image)
+		void image_callback(const boost::shared_ptr<ImageT>& color_image, const boost::shared_ptr<DepthT>& depth_image)
 		{
 			boost::mutex::scoped_lock lock(image_mutex);
 			depth_image_ = depth_image;
@@ -51,8 +51,8 @@ namespace pcl
 			{
 				visualizer = new visualization::PCLVisualizer("PCLGrabber: point cloud");
 				visualizer->addCoordinateSystem(1.0);
-				visualizer->setCameraPosition(0.0, -20.0, 0.0, 0.0, 0.0, 1.0);
-//for asus		visualizer->setCameraPosition(0.0, 0.0, -5.0, 0.0, -1.0, 0.0);
+//				visualizer->setCameraPosition(0.0, -20.0, 0.0, 0.0, 0.0, 1.0);
+				visualizer->setCameraPosition(0.0, 0.0, -5.0, 0.0, -1.0, 0.0);
 
 				boost::function<void(const boost::shared_ptr<const PointCloud<PointT> >&)> f_viscloud =
 					boost::bind(&BasicViewer::cloud_cb_, this, _1);
@@ -61,18 +61,18 @@ namespace pcl
 
 			if (vis_images)
 			{
-				if (grabber->providesCallback<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthImageT>&, const boost::shared_ptr<ImageT>&)>())
+				if (grabber->providesCallback<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthT>&, const boost::shared_ptr<ImageT>&)>())
 				{
-					boost::function<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthImageT>&, const boost::shared_ptr<ImageT>&)> f_image =
+					boost::function<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthT>&, const boost::shared_ptr<ImageT>&)> f_image =
 						boost::bind(&BasicViewer::image_callback, this, _3, _2);
 					grabber->registerCallback(f_image);
 
 					color_viewer = new visualization::ImageViewer("PCLGrabber: color image");
 					depth_viewer = new visualization::ImageViewer("PCLGrabber: depth image");
 				}
-				else if (grabber->providesCallback<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthImageT>&, float flength)>())
+				else if (grabber->providesCallback<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthT>&, float flength)>())
 				{
-					boost::function<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthImageT>&, float flength)> f_image =
+					boost::function<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthT>&, float flength)> f_image =
 						boost::bind(&BasicViewer::image_callback, this, _1, _2);
 					grabber->registerCallback(f_image);
 
@@ -84,12 +84,12 @@ namespace pcl
 
 		bool SpinOnce()
 		{
+			boost::shared_ptr<ImageT> color_image;
+			boost::shared_ptr<DepthT> depth_image;
+			boost::shared_ptr<const PointCloud<PointT> > cloud;
+
 			if (!((visualizer && visualizer->wasStopped()) || (depth_viewer && depth_viewer->wasStopped()) || (color_viewer && color_viewer->wasStopped())))
 			{
-				boost::shared_ptr<ImageT> color_image;
-				boost::shared_ptr<DepthImageT> depth_image;
-				boost::shared_ptr<const PointCloud<PointT> > cloud;
-
 				if (visualizer)
 				{
 					if (cloud_mutex.try_lock()){
@@ -112,7 +112,7 @@ namespace pcl
 						*/
 					}
 
-					visualizer->spinOnce();
+					visualizer->spinOnce(10);
 				}
 
 				if (depth_viewer && color_viewer)
@@ -129,10 +129,9 @@ namespace pcl
 					if (color_image)
 						color_viewer->showRGBImage(GetRGBBuffer(color_image), GetWidth(color_image), GetHeight(color_image));
 
-					depth_viewer->spinOnce();
-					color_viewer->spinOnce();
+					depth_viewer->spinOnce(100);
+					color_viewer->spinOnce(100);
 				}
-
 				return true;
 			}
 			else

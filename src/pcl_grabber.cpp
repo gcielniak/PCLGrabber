@@ -12,7 +12,8 @@
 #include "ImageUtils.h"
 #include "BasicViewer.h"
 #include "FileOutput.h"
-#include "BasicGrabber.h"
+#include "FileGrabberExt.h"
+#include "DeviceInput.h"
 
 using namespace pcl;
 
@@ -46,17 +47,25 @@ int main(int argc, char **argv)
 	}
 
 	typedef PointXYZRGBA PointT;
-	BasicGrabber<PointT> grabber;
-#ifdef HAVE_OPENCV
-	FileOutput<PointT, CvMatExt, CvMatExt> writer;
-	BasicViewer<PointT, CvMatExt, CvMatExt> viewer;
-#elif HAVE_OPENNI2
-	FileOutput<PointT, io::Image, io::DepthImage> writer;
-	BasicViewer<PointT, io::Image, io::DepthImage> viewer;
-#elif HAVE_OPENNI
-	FileOutput<PointT, openni_wrapper::Image, openni_wrapper::DepthImage> writer;
-	BasicViewer<PointT, openni_wrapper::Image, openni_wrapper::DepthImage> viewer;
-#endif
+	#ifdef HAVE_OPENCV
+	typedef CvMatExt ImageT;
+	typedef CvMatExt DepthT;
+	#elif HAVE_OPENNI2
+	typedef io::Image ImageT;
+	typedef io::DepthImage DepthT;
+	#elif HAVE_OPENNI
+	typedef openni_wrapper::Image ImageT;
+	typedef openni_wrapper::DepthImage DepthT;
+	#endif
+
+	Grabber* grabber = 0;
+	std::string file_name;
+	int device = 0, platform = 0;
+	float fps = 10.0;
+	bool repeat = false, swap_rb_channels = false;
+
+	FileOutput<PointT, ImageT, DepthT> writer;
+	BasicViewer<PointT, ImageT, DepthT> viewer;
 
 	for (int i = 1; i < argc; i++)
 	{
@@ -66,41 +75,50 @@ int main(int argc, char **argv)
 			device_input.ListAllDevices();
 			return 0;
 		}
-		else if ((strcmp(argv[i], "-p") == 0) && (i < (argc - 1))) { grabber.Platform(atoi(argv[++i])); }
-		else if ((strcmp(argv[i], "-d") == 0) && (i < (argc - 1))) { grabber.Device(atoi(argv[++i])); }
+		else if ((strcmp(argv[i], "-p") == 0) && (i < (argc - 1))) { platform = atoi(argv[++i]); }
+		else if ((strcmp(argv[i], "-d") == 0) && (i < (argc - 1))) { device = atoi(argv[++i]); }
 		else if ((strcmp(argv[i], "-w") == 0) && (i < (argc - 1))) { writer.Format(atoi(argv[++i])); }
 		else if ((strcmp(argv[i], "-f") == 0) && (i < (argc - 1))) {
-			grabber.File(argv[++i]); 
+			file_name = argv[++i];
 			writer.SimulatedTime(true);
 			writer.OutputDir(".\\data\\" + boost::filesystem::path(argv[i]).filename().string() + "_copy\\");
 		}
-		else if ((strcmp(argv[i], "-fps") == 0) && (i < (argc - 1))) { grabber.FPS(atof(argv[++i])); }
-		else if (strcmp(argv[i], "-r") == 0) { grabber.Repeat(true); }
+		else if ((strcmp(argv[i], "-fps") == 0) && (i < (argc - 1))) { fps = atof(argv[++i]); }
+		else if (strcmp(argv[i], "-r") == 0) { repeat = true; }
 		else if (strcmp(argv[i], "-vc") == 0) { viewer.VisualiseCloudPoint(true); }
 		else if (strcmp(argv[i], "-vi") == 0) { viewer.VisualiseImages(true); }
-		else if (strcmp(argv[i], "-s") == 0) { grabber.SwapRBChannels(true); }
+		else if (strcmp(argv[i], "-s") == 0) { swap_rb_channels = true; }
 		else if (strcmp(argv[i], "-h") == 0) { print_help(); }
 	}
 
-	try
-	{
-		grabber.Init();
+	if (file_name != "") { //select a file grabber (pcd or pclzf/png)
+		try { grabber = new PCLGrabber::PCDGrabberExt<PointT, ImageT, DepthT>(file_name, fps, repeat); }
+		catch (pcl::PCLException&) {}
+
+		if (!grabber) {
+			try { grabber = new PCLGrabber::ImageGrabberExt<PointT, ImageT, DepthT>(file_name, fps, repeat, swap_rb_channels); }
+			catch (pcl::PCLException&) {}
+		}
 	}
-	catch (pcl::PCLException&)
-	{
+	else { //select device
+		DeviceInput* device_input = new DeviceInput();
+		grabber = device_input->GetGrabber(platform, device);
+	}
+
+	if (!grabber) {
 		cerr << "Could not initialise the specified input." << endl;
-		return 0;	
+		return 0;
 	}
 
-	viewer.RegisterCallbacks(grabber.GetGrabber());
-	writer.RegisterCallbacks(grabber.GetGrabber());
+	viewer.RegisterCallbacks(grabber);
+	writer.RegisterCallbacks(grabber);
 
-	grabber.Start();
+	grabber->start();
 
 	while (viewer.SpinOnce())
 		;
 
-	grabber.Stop();
+	grabber->stop();
 
 	return 0;
 }
