@@ -66,7 +66,7 @@ namespace PCLGrabber
 					sensor_time_start = boost::posix_time::microsec_clock::local_time();
 					sensor_timestamp_first = cloud_timestamp;
 				}
-				//correct
+				//correct timestamp
 				cloud_timestamp += sensor_time_start - sensor_timestamp_first;
 			}
 

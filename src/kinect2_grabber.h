@@ -416,7 +416,7 @@ namespace pcl
 			cloud->height = static_cast<uint32_t>(depthHeight);
 			cloud->is_dense = false;
 			cloud->points.resize(cloud_size);
-			cloud->header.stamp = depth_timestamp;
+			cloud->header.stamp = depth_timestamp/10; //convert to us
 			cloud->header.seq = pcloud_counter++;
 
 			PointT* pt = &cloud->points[0];
