@@ -14,293 +14,30 @@
 #include <pcl/point_types.h>
 #include "ImageUtils.h"
 
-namespace pcl
-{
+namespace PCLGrabber {
+
 	template<class Interface>
-	inline void SafeRelease(Interface *& IRelease)
-	{
-		if (IRelease != NULL){
+	inline void SafeRelease(Interface *& IRelease) {
+		if (IRelease != NULL) {
 			IRelease->Release();
 			IRelease = NULL;
 		}
 	}
 
+	//Kinect2 grabber
+	template<typename PointT, typename ImageT, typename DepthT>
+	class Kinect2Grabber : public Grabber {
 
-	template<typename PointT, typename ImageT, typename DepthImageT>
-	class Kinect2Grabber : public Grabber
-	{
-	public:
-		typedef void (signal_Kinect2_PointT)(const boost::shared_ptr<const PointCloud<PointT>>&);
-		typedef void (signal_Kinect2_ImageDepth)(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthImageT>&, float reciprocalFocalLength);
-		typedef void (signal_Kinect2_ImageDepthImage)(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthImageT>&, const boost::shared_ptr<ImageT>&);
-		typedef void (signal_Kinect2_ImageDepthImageDepth)(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthImageT>&, const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthImageT>&);
-
-		Kinect2Grabber()
-			: sensor(nullptr)
-			, mapper(nullptr)
-			, colorSource(nullptr)
-			, colorReader(nullptr)
-			, depthSource(nullptr)
-			, depthReader(nullptr)
-			, result(S_OK)
-			, colorWidth(1920)
-			, colorHeight(1080)
-			, colorBuffer()
-			, depthWidth(512)
-			, depthHeight(424)
-			, depthBuffer()
-			, running(false)
-			, quit(false)
-			, signal_PointT(nullptr)
-			, data_ready(false)
-			, color_timestamp(0)
-			, depth_timestamp(0)
-		{
-			// Create Sensor Instance
-			result = GetDefaultKinectSensor(&sensor);
-			if (FAILED(result)){
-				throw std::exception("Exception : GetDefaultKinectSensor()");
-			}
-
-			// Open Sensor
-			result = sensor->Open();
-			if (FAILED(result)){
-				throw std::exception("Exception : IKinectSensor::Open()");
-			}
-
-			// Retrieved Coordinate Mapper
-			result = sensor->get_CoordinateMapper(&mapper);
-			if (FAILED(result)){
-				throw std::exception("Exception : IKinectSensor::get_CoordinateMapper()");
-			}
-
-			// Retrieved Color Frame Source
-			result = sensor->get_ColorFrameSource(&colorSource);
-			if (FAILED(result)){
-				throw std::exception("Exception : IKinectSensor::get_ColorFrameSource()");
-			}
-
-			// Retrieved Depth Frame Source
-			result = sensor->get_DepthFrameSource(&depthSource);
-			if (FAILED(result)){
-				throw std::exception("Exception : IKinectSensor::get_DepthFrameSource()");
-			}
-
-			// Retrieved Color Frame Size
-			IFrameDescription* colorDescription;
-			result = colorSource->get_FrameDescription(&colorDescription);
-			if (FAILED(result)){
-				throw std::exception("Exception : IColorFrameSource::get_FrameDescription()");
-			}
-
-			result = colorDescription->get_Width(&colorWidth); // 1920
-			if (FAILED(result)){
-				throw std::exception("Exception : IFrameDescription::get_Width()");
-			}
-
-			result = colorDescription->get_Height(&colorHeight); // 1080
-			if (FAILED(result)){
-				throw std::exception("Exception : IFrameDescription::get_Height()");
-			}
-
-			SafeRelease(colorDescription);
-
-			// To Reserve Color Frame Buffer
-			colorBuffer.resize(colorWidth * colorHeight);
-
-			// Retrieved Depth Frame Size
-			IFrameDescription* depthDescription;
-			result = depthSource->get_FrameDescription(&depthDescription);
-			if (FAILED(result)){
-				throw std::exception("Exception : IDepthFrameSource::get_FrameDescription()");
-			}
-
-			result = depthDescription->get_Width(&depthWidth); // 512
-			if (FAILED(result)){
-				throw std::exception("Exception : IFrameDescription::get_Width()");
-			}
-
-			result = depthDescription->get_Height(&depthHeight); // 424
-			if (FAILED(result)){
-				throw std::exception("Exception : IFrameDescription::get_Height()");
-			}
-
-			SafeRelease(depthDescription);
-
-			// To Reserve Depth Frame Buffer
-			depthBuffer.resize(depthWidth * depthHeight);
-
-			signal_PointT = createSignal<signal_Kinect2_PointT>();
-			signal_ImageDepth = createSignal<signal_Kinect2_ImageDepth>();
-			signal_ImageDepthImage = createSignal<signal_Kinect2_ImageDepthImage>();
-			signal_ImageDepthImageDepth = createSignal<signal_Kinect2_ImageDepthImageDepth>();
-		}
-
-		~Kinect2Grabber() throw()
-		{
-			stop();
-
-			disconnect_all_slots<signal_Kinect2_PointT>();
-			disconnect_all_slots<signal_Kinect2_ImageDepth>();
-			disconnect_all_slots<signal_Kinect2_ImageDepthImage>();
-			disconnect_all_slots<signal_Kinect2_ImageDepthImageDepth>();
-
-			// End Processing
-			if (sensor){
-				sensor->Close();
-			}
-			SafeRelease(sensor);
-			SafeRelease(mapper);
-			SafeRelease(colorSource);
-			SafeRelease(colorReader);
-			SafeRelease(depthSource);
-			SafeRelease(depthReader);
-
-			thread.join();
-		}
-
-		bool IsAvailable() {
-			BOOLEAN value;
-			sensor->get_IsAvailable(&value);
-			return (value == 1);
-		}
-
-		void start()
-		{
-			// Open Color Frame Reader
-			result = colorSource->OpenReader(&colorReader);
-			if (FAILED(result)){
-				throw std::exception("Exception : IColorFrameSource::OpenReader()");
-			}
-
-			// Open Depth Frame Reader
-			result = depthSource->OpenReader(&depthReader);
-			if (FAILED(result)){
-				throw std::exception("Exception : IDepthFrameSource::OpenReader()");
-			}
-
-			running = true;
-
-			thread = boost::thread(&Kinect2Grabber::threadFunction, this);
-		}
-
-		void stop()
-		{
-			boost::unique_lock<boost::mutex> lock(mutex);
-
-			quit = true;
-			running = false;
-
-			lock.unlock();
-		}
-
-		bool isRunning() const
-		{
-			boost::unique_lock<boost::mutex> lock(mutex);
-
-			return running;
-
-			lock.unlock();
-		}
-
-		std::string getName() const{
-			return std::string("Kinect2Grabber");
-		}
-
-		float getFramesPerSecond() const {
-			return 30.0f;
-		}
-
-		void threadFunction()
-		{
-
-			while (!quit){
-				boost::unique_lock<boost::mutex> lock(mutex);
-
-				// Acquire Latest Color Frame
-				IColorFrame* colorFrame = nullptr;
-				result = colorReader->AcquireLatestFrame(&colorFrame);
-				if (SUCCEEDED(result)){
-					// Retrieved Color Data
-					result = colorFrame->CopyConvertedFrameDataToArray(colorBuffer.size() * sizeof(RGBQUAD), reinterpret_cast<BYTE*>(&colorBuffer[0]), ColorImageFormat::ColorImageFormat_Bgra);
-
-					if (FAILED(result)){
-						throw std::exception("Exception : IColorFrame::CopyConvertedFrameDataToArray()");
-					}
-
-					colorFrame->get_RelativeTime(&color_timestamp);
-				}
-
-
-				SafeRelease(colorFrame);
-
-				// Acquire Latest Depth Frame
-				IDepthFrame* depthFrame = nullptr;
-				result = depthReader->AcquireLatestFrame(&depthFrame);
-				if (SUCCEEDED(result)){
-					// Retrieved Depth Data
-					result = depthFrame->CopyFrameDataToArray(depthBuffer.size(), &depthBuffer[0]);
-
-					if (FAILED(result)){
-						throw std::exception("Exception : IDepthFrame::CopyFrameDataToArray()");
-					}
-
-					depthFrame->get_RelativeTime(&depth_timestamp);
-					data_ready = true;
-				}
-				else
-					data_ready = false;
-
-				SafeRelease(depthFrame);
-
-				lock.unlock();
-
-				if (data_ready)//fire signals only if there is new depth data
-				{
-					mapping_updated = false;
-
-					if (signal_PointT->num_slots() > 0) {
-						signal_PointT->operator()(convertToPointCloud(&colorBuffer[0]));
-					}
-					
-					if (signal_ImageDepth->num_slots() > 0)
-						signal_ImageDepth->operator()(convertColorImageReg(colorBuffer), convertDepthImage(depthBuffer), 1.0);
-					
-					if (signal_ImageDepthImage->num_slots() > 0)
-						signal_ImageDepthImage->operator()(convertColorImageReg(colorBuffer), convertDepthImage(depthBuffer), convertColorImageOrig(colorBuffer));
-
-					if (signal_ImageDepthImageDepth->num_slots() > 0)
-						signal_ImageDepthImageDepth->operator()(convertColorImageOrig(colorBuffer), convertDepthImage(depthBuffer), convertColorImageReg(colorBuffer), convertDepthImageReg(depthBuffer, depth_timestamp / 10));
-				}
-			}
-		}
-
-		void PrintCalib()
-		{
-			if (mapper)
-			{
-				CameraIntrinsics intrinsics;
-
-				mapper->GetDepthCameraIntrinsics(&intrinsics);
-
-				cerr << "FocalLengthX: " << intrinsics.FocalLengthX << endl;
-				cerr << "FocalLengthY: " << intrinsics.FocalLengthY << endl;
-				cerr << "PrincipalPointX: " << intrinsics.PrincipalPointX << endl;
-				cerr << "PrincipalPointY: " << intrinsics.PrincipalPointY << endl;
-				cerr << "RadialDistortionFourthOrder: " << intrinsics.RadialDistortionFourthOrder << endl;
-				cerr << "RadialDistortionSecondOrder: " << intrinsics.RadialDistortionSecondOrder << endl;
-				cerr << "RadialDistortionSixthOrder: " << intrinsics.RadialDistortionSixthOrder << endl;
-
-			}
-		}
-
-		bool mapping_updated;
+		typedef void (Signal_PointT)(const boost::shared_ptr<const PointCloud<PointT>>&);
+		typedef void (Signal_ImageDepth)(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthT>&, float reciprocalFocalLength);
+		typedef void (Signal_ImageDepthImage)(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthT>&, const boost::shared_ptr<ImageT>&);
+		typedef void (Signal_ImageDepthImageDepth)(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthT>&, const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthT>&);
 
 	protected:
-		boost::signals2::signal<signal_Kinect2_PointT>* signal_PointT;
-		boost::signals2::signal<signal_Kinect2_ImageDepthImage>* signal_ImageDepthImage;
-		boost::signals2::signal<signal_Kinect2_ImageDepth>* signal_ImageDepth;
-		boost::signals2::signal<signal_Kinect2_ImageDepthImageDepth>* signal_ImageDepthImageDepth;//original + registered images
+		boost::signals2::signal<Signal_PointT>* signal_PointT;
+		boost::signals2::signal<Signal_ImageDepthImage>* signal_ImageDepthImage;
+		boost::signals2::signal<Signal_ImageDepth>* signal_ImageDepth;
+		boost::signals2::signal<Signal_ImageDepthImageDepth>* signal_ImageDepthImageDepth;//original + registered images
 
 		vector<unsigned char> color_buffer, orig_buffer;
 		vector<unsigned short> depth_buffer;
@@ -333,6 +70,234 @@ namespace pcl
 		vector<ColorSpacePoint> color_space_points;
 		bool data_ready;
 
+	public:
+		Kinect2Grabber()
+			: sensor(nullptr), mapper(nullptr), colorSource(nullptr), colorReader(nullptr),
+			depthSource(nullptr), depthReader(nullptr), result(S_OK), colorWidth(1920),
+			colorHeight(1080), colorBuffer(), depthWidth(512), depthHeight(424),
+			depthBuffer(), running(false), quit(false), signal_PointT(nullptr),
+			data_ready(false), color_timestamp(0), depth_timestamp(0) {
+
+			// Create Sensor Instance
+			result = GetDefaultKinectSensor(&sensor);
+			if (FAILED(result))
+				throw std::exception("Exception : GetDefaultKinectSensor()");
+
+			// Open Sensor
+			result = sensor->Open();
+			if (FAILED(result))
+				throw std::exception("Exception : IKinectSensor::Open()");
+
+			// Retrieved Coordinate Mapper
+			result = sensor->get_CoordinateMapper(&mapper);
+			if (FAILED(result))
+				throw std::exception("Exception : IKinectSensor::get_CoordinateMapper()");
+
+			// Retrieved Color Frame Source
+			result = sensor->get_ColorFrameSource(&colorSource);
+			if (FAILED(result))
+				throw std::exception("Exception : IKinectSensor::get_ColorFrameSource()");
+
+			// Retrieved Depth Frame Source
+			result = sensor->get_DepthFrameSource(&depthSource);
+			if (FAILED(result))
+				throw std::exception("Exception : IKinectSensor::get_DepthFrameSource()");
+
+			// Retrieved Color Frame Size
+			IFrameDescription* colorDescription;
+			result = colorSource->get_FrameDescription(&colorDescription);
+			if (FAILED(result))
+				throw std::exception("Exception : IColorFrameSource::get_FrameDescription()");
+
+			result = colorDescription->get_Width(&colorWidth); // 1920
+			if (FAILED(result))
+				throw std::exception("Exception : IFrameDescription::get_Width()");
+
+			result = colorDescription->get_Height(&colorHeight); // 1080
+			if (FAILED(result))
+				throw std::exception("Exception : IFrameDescription::get_Height()");
+
+			SafeRelease(colorDescription);
+
+			// To Reserve Color Frame Buffer
+			colorBuffer.resize(colorWidth * colorHeight);
+
+			// Retrieved Depth Frame Size
+			IFrameDescription* depthDescription;
+			result = depthSource->get_FrameDescription(&depthDescription);
+			if (FAILED(result))
+				throw std::exception("Exception : IDepthFrameSource::get_FrameDescription()");
+
+			result = depthDescription->get_Width(&depthWidth); // 512
+			if (FAILED(result))
+				throw std::exception("Exception : IFrameDescription::get_Width()");
+
+			result = depthDescription->get_Height(&depthHeight); // 424
+			if (FAILED(result))
+				throw std::exception("Exception : IFrameDescription::get_Height()");
+
+			SafeRelease(depthDescription);
+
+			// To Reserve Depth Frame Buffer
+			depthBuffer.resize(depthWidth * depthHeight);
+
+			signal_PointT = createSignal<Signal_PointT>();
+			signal_ImageDepth = createSignal<Signal_ImageDepth>();
+			signal_ImageDepthImage = createSignal<Signal_ImageDepthImage>();
+			signal_ImageDepthImageDepth = createSignal<Signal_ImageDepthImageDepth>();
+		}
+
+		~Kinect2Grabber() throw()
+		{
+			stop();
+
+			disconnect_all_slots<Signal_PointT>();
+			disconnect_all_slots<Signal_ImageDepth>();
+			disconnect_all_slots<Signal_ImageDepthImage>();
+			disconnect_all_slots<Signal_ImageDepthImageDepth>();
+
+			// End Processing
+			if (sensor)
+				sensor->Close();
+
+			SafeRelease(sensor);
+			SafeRelease(mapper);
+			SafeRelease(colorSource);
+			SafeRelease(colorReader);
+			SafeRelease(depthSource);
+			SafeRelease(depthReader);
+
+			thread.join();
+		}
+
+		bool IsAvailable() {
+			BOOLEAN value;
+			sensor->get_IsAvailable(&value);
+			return (value == 1);
+		}
+
+		void start() {
+			// Open Color Frame Reader
+			result = colorSource->OpenReader(&colorReader);
+			if (FAILED(result))
+				throw std::exception("Exception : IColorFrameSource::OpenReader()");
+
+			// Open Depth Frame Reader
+			result = depthSource->OpenReader(&depthReader);
+			if (FAILED(result))
+				throw std::exception("Exception : IDepthFrameSource::OpenReader()");
+
+			running = true;
+
+			thread = boost::thread(&Kinect2Grabber::threadFunction, this);
+		}
+
+		void stop() {
+			boost::unique_lock<boost::mutex> lock(mutex);
+
+			quit = true;
+			running = false;
+
+			lock.unlock();
+		}
+
+		bool isRunning() const {
+			boost::unique_lock<boost::mutex> lock(mutex);
+
+			return running;
+
+			lock.unlock();
+		}
+
+		std::string getName() const {
+			return std::string("Kinect2Grabber");
+		}
+
+		float getFramesPerSecond() const {
+			return 30.0f;
+		}
+
+		void threadFunction() {
+
+			while (!quit) {
+				boost::unique_lock<boost::mutex> lock(mutex);
+
+				// Acquire Latest Color Frame
+				IColorFrame* colorFrame = nullptr;
+				result = colorReader->AcquireLatestFrame(&colorFrame);
+				if (SUCCEEDED(result)) {
+					// Retrieved Color Data
+					result = colorFrame->CopyConvertedFrameDataToArray(colorBuffer.size() * sizeof(RGBQUAD), reinterpret_cast<BYTE*>(&colorBuffer[0]), ColorImageFormat::ColorImageFormat_Rgba);
+
+					if (FAILED(result)) {
+						throw std::exception("Exception : IColorFrame::CopyConvertedFrameDataToArray()");
+					}
+
+					colorFrame->get_RelativeTime(&color_timestamp);
+					color_timestamp /= 10; //convert to us
+				}
+
+
+				SafeRelease(colorFrame);
+
+				// Acquire Latest Depth Frame
+				IDepthFrame* depthFrame = nullptr;
+				result = depthReader->AcquireLatestFrame(&depthFrame);
+				if (SUCCEEDED(result)) {
+					// Retrieved Depth Data
+					result = depthFrame->CopyFrameDataToArray(depthBuffer.size(), &depthBuffer[0]);
+
+					if (FAILED(result))
+						throw std::exception("Exception : IDepthFrame::CopyFrameDataToArray()");
+
+					depthFrame->get_RelativeTime(&depth_timestamp);
+					depth_timestamp /= 10; //convert to us
+					data_ready = true;
+				}
+				else
+					data_ready = false;
+
+				SafeRelease(depthFrame);
+
+				lock.unlock();
+
+				if (data_ready)//fire signals only if there is new depth data
+				{
+					mapping_updated = false;
+
+					if (signal_PointT->num_slots())
+						signal_PointT->operator()(convertToPointCloud(&colorBuffer[0]));
+
+					if (signal_ImageDepth->num_slots())
+						signal_ImageDepth->operator()(convertColorImageReg(colorBuffer), convertDepthImage(depthBuffer), 1.0);
+
+					if (signal_ImageDepthImage->num_slots())
+						signal_ImageDepthImage->operator()(convertColorImageReg(colorBuffer), convertDepthImage(depthBuffer), convertColorImageOrig(colorBuffer));
+
+					if (signal_ImageDepthImageDepth->num_slots())
+						signal_ImageDepthImageDepth->operator()(convertColorImageOrig(colorBuffer), convertDepthImage(depthBuffer), convertColorImageReg(colorBuffer), convertDepthImageReg(depthBuffer, depth_timestamp));
+				}
+			}
+		}
+
+		void PrintCalib() {
+			if (mapper) {
+				CameraIntrinsics intrinsics;
+
+				mapper->GetDepthCameraIntrinsics(&intrinsics);
+
+				cerr << "FocalLengthX: " << intrinsics.FocalLengthX << endl;
+				cerr << "FocalLengthY: " << intrinsics.FocalLengthY << endl;
+				cerr << "PrincipalPointX: " << intrinsics.PrincipalPointX << endl;
+				cerr << "PrincipalPointY: " << intrinsics.PrincipalPointY << endl;
+				cerr << "RadialDistortionFourthOrder: " << intrinsics.RadialDistortionFourthOrder << endl;
+				cerr << "RadialDistortionSecondOrder: " << intrinsics.RadialDistortionSecondOrder << endl;
+				cerr << "RadialDistortionSixthOrder: " << intrinsics.RadialDistortionSixthOrder << endl;
+			}
+		}
+
+		bool mapping_updated;
+
 		boost::shared_ptr<ImageT> convertColorImageOrig(const std::vector<RGBQUAD>& buffer)
 		{
 			//convert to rgb buffer
@@ -349,7 +314,7 @@ namespace pcl
 			if (!color_timestamp)
 				color_timestamp = depth_timestamp;
 
-			return ToImageRGB24<ImageT>(&orig_buffer[0], colorWidth, colorHeight, color_timestamp / 10);
+			return ToImageRGB24<ImageT>(&orig_buffer[0], colorWidth, colorHeight, color_timestamp);
 		}
 
 		boost::shared_ptr<ImageT> convertColorImageReg(const std::vector<RGBQUAD>& buffer)
@@ -386,10 +351,10 @@ namespace pcl
 			if (!color_timestamp)
 				color_timestamp = depth_timestamp;
 
-			return ToImageRGB24<ImageT>(&color_buffer[0], depthWidth, depthHeight, color_timestamp / 10);
+			return ToImageRGB24<ImageT>(&color_buffer[0], depthWidth, depthHeight, color_timestamp);
 		}
 
-		boost::shared_ptr<DepthImageT> convertDepthImage(const std::vector<UINT16>& buffer)
+		boost::shared_ptr<DepthT> convertDepthImage(const std::vector<UINT16>& buffer)
 		{
 			CameraIntrinsics intrinsics;
 			mapper->GetDepthCameraIntrinsics(&intrinsics);
@@ -398,7 +363,7 @@ namespace pcl
 			if (!intrinsics.FocalLengthX)
 				intrinsics.FocalLengthX = 364.82281494140625;
 
-			return ToDepthImage<DepthImageT>(&buffer[0], depthWidth, depthHeight, intrinsics.FocalLengthX, depth_timestamp / 10);
+			return ToDepthImage<DepthT>(&buffer[0], depthWidth, depthHeight, intrinsics.FocalLengthX, depth_timestamp);
 		}
 
 		boost::shared_ptr<const PointCloud<PointT> > convertToPointCloud(RGBQUAD* colorBuffer)
@@ -416,7 +381,7 @@ namespace pcl
 			cloud->height = static_cast<uint32_t>(depthHeight);
 			cloud->is_dense = false;
 			cloud->points.resize(cloud_size);
-			cloud->header.stamp = depth_timestamp/10; //convert to us
+			cloud->header.stamp = depth_timestamp; //convert to us
 			cloud->header.seq = pcloud_counter++;
 
 			PointT* pt = &cloud->points[0];
@@ -431,7 +396,7 @@ namespace pcl
 				{
 					RGBQUAD* cp = &colorBuffer[color_ind];
 					pt->x = csp->X;
-					pt->y = -csp->Y;//--X, Y makes it compatible with OpenNI point clouds and image readers
+					pt->y = -csp->Y;//-Y makes it compatible with OpenNI point clouds and image readers
 					pt->z = csp->Z;
 					if ((typeid(PointT) == typeid(PointXYZRGB)) || (typeid(PointT) == typeid(PointXYZRGBA)))
 					{
@@ -468,6 +433,7 @@ namespace pcl
 			if (depth_space_points.size() != color_size)
 				depth_space_points.resize(color_size);
 
+			//TODO: check which mapping is needed depending on the signals
 			mapper->MapDepthFrameToCameraSpace(depth_size, &depth_buffer[0], camera_space_points.size(), &camera_space_points[0]);
 			mapper->MapDepthFrameToColorSpace(depth_size, &depth_buffer[0], color_space_points.size(), &color_space_points[0]);
 			mapper->MapColorFrameToDepthSpace(depth_size, &depth_buffer[0], depth_space_points.size(), &depth_space_points[0]);
@@ -475,41 +441,39 @@ namespace pcl
 			mapping_updated = true;
 		}
 
-		public:
-			boost::shared_ptr<DepthImageT> convertDepthImageReg(const std::vector<UINT16>& buffer, long long timestamp)
+	public:
+		//publicly available so can be called by other classes.
+		boost::shared_ptr<DepthT> convertDepthImageReg(const std::vector<UINT16>& buffer, long long timestamp) {
+			UpdateMapping(buffer);
+
+			int color_size = colorWidth*colorHeight;
+			int depth_size = depthWidth*depthHeight;
+
+			depth_buffer.resize(color_size);
+
+			unsigned short* pt = &depth_buffer[0];
+			DepthSpacePoint* depthsp = &depth_space_points[0];
+
+			for (int i = 0; i < color_size; i++, depthsp++)
 			{
-				UpdateMapping(buffer);
+				int depth_ind = (int)(depthsp->X + 0.5) + (int)(depthsp->Y + 0.5)*depthWidth;
 
-				int color_size = colorWidth*colorHeight;
-				int depth_size = depthWidth*depthHeight;
-
-				depth_buffer.resize(color_size);
-
-				unsigned short* pt = &depth_buffer[0];
-				DepthSpacePoint* depthsp = &depth_space_points[0];
-
-				for (int i = 0; i < color_size; i++, depthsp++)
-				{
-					int depth_ind = (int)(depthsp->X + 0.5) + (int)(depthsp->Y + 0.5)*depthWidth;
-
-					if ((depth_ind >= 0) && (depth_ind < depth_size))
-						*pt++ = buffer[depth_ind];
-					else
-						*pt++ = 0;
-				}
-
-				CameraIntrinsics intrinsics;
-				mapper->GetDepthCameraIntrinsics(&intrinsics);
-
-				//parameters are not available during first couple of seconds
-				if (!intrinsics.FocalLengthX)
-					intrinsics.FocalLengthX = 364.82281494140625;
-
-				return ToDepthImage<DepthImageT>(&depth_buffer[0], colorWidth, colorHeight, intrinsics.FocalLengthX, timestamp);
+				if ((depth_ind >= 0) && (depth_ind < depth_size))
+					*pt++ = buffer[depth_ind];
+				else
+					*pt++ = 0;
 			}
 
-	};
+			CameraIntrinsics intrinsics;
+			mapper->GetDepthCameraIntrinsics(&intrinsics);
 
+			//parameters are not available during the first couple of seconds
+			if (!intrinsics.FocalLengthX)
+				intrinsics.FocalLengthX = 364.82281494140625;
+
+			return ToDepthImage<DepthT>(&depth_buffer[0], colorWidth, colorHeight, intrinsics.FocalLengthX, timestamp);
+		}
+	};
 }
 
 #endif KINECT2_GRABBER
