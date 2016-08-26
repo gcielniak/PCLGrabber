@@ -427,7 +427,7 @@ namespace pcl
 				{
 					RGBQUAD* cp = &colorBuffer[color_ind];
 					pt->x = csp->X;
-					pt->y = -csp->Y;//-Y makes it compatible with OpenNI point clouds and image readers
+					pt->y = -csp->Y;//--X, Y makes it compatible with OpenNI point clouds and image readers
 					pt->z = csp->Z;
 					if ((typeid(PointT) == typeid(PointXYZRGB)) || (typeid(PointT) == typeid(PointXYZRGBA)))
 					{

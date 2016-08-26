@@ -8,9 +8,10 @@
 #include <typeinfo>
 #include "ImageUtils.h"
 
-namespace pcl
+namespace PCLGrabber
 {
 	using namespace std;
+	using namespace pcl;
 
 	// Get current date/time, format is YYYYMMDDTHHmmss
 	const std::string currentDateTime()
@@ -21,15 +22,18 @@ namespace pcl
 		return ss.str();
 	}
 
-	template <typename PointT, typename ImageT, typename DepthImageT>
-	class FileOutput
-	{
-		int image_counter, format;
+	class FileOutputBase {
+	protected:
+		int format;
 		string output_data_path;
 		bool simulated_time;
 
 	public:
-		FileOutput() : image_counter(0), output_data_path(".\\data\\" + currentDateTime() + "\\"), format(-1), sensor_timestamp_start(0), simulated_time(false) {}
+		FileOutputBase() : 
+			output_data_path(".\\data\\" + currentDateTime() + "\\"), format(-1), simulated_time(false) {
+		}
+
+		virtual void RegisterCallbacks(Grabber* grabber) = 0;
 
 		void Format(int value) { format = value; }
 		int Format() { return format; }
@@ -39,6 +43,14 @@ namespace pcl
 
 		void SimulatedTime(bool value) { simulated_time = value; }
 		bool SimulatedTime() { return simulated_time; }
+	};
+
+	template <typename PointT, typename ImageT, typename DepthImageT>
+	class FileOutput : public FileOutputBase {
+		int image_counter;
+
+	public:
+		FileOutput() : image_counter(0), sensor_timestamp_start(0) {}
 
 		void WritePCD(const boost::shared_ptr<const PointCloud<PointT> >& cloud)
 		{
@@ -187,7 +199,7 @@ namespace pcl
 			FPS_CALC("WRITE IMAGE");
 		}
 
-		void RegisterCallbacks(Grabber* grabber)
+		virtual void RegisterCallbacks(Grabber* grabber)
 		{
 			if ((format == 0) || (format == 2))
 			{

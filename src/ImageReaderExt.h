@@ -3,8 +3,9 @@
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/date_time/gregorian/gregorian.hpp>
 
-namespace pcl
-{
+namespace pcl {
+	using namespace std;
+
 	template < typename ImageT >
 	class LZFRGB24ImageReaderExt : public io::LZFRGB24ImageReader
 	{

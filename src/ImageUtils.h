@@ -97,16 +97,22 @@ namespace pcl
 	template <>
 	boost::shared_ptr<io::Image> ToImageRGB24<io::Image>(const unsigned char* buffer, int width, int height, long long timestamp)
 	{
-		OniFrame *oni_frame = new OniFrame();
-		oni_frame->data = (void*)buffer;
-		oni_frame->dataSize = width * height * 3;
-		oni_frame->height = height;
-		oni_frame->width = width;
-		oni_frame->stride = width * 3;
-		oni_frame->timestamp = timestamp;
+		OniFrame* oframe = new OniFrame();
+		oframe->data = (void*)buffer;
+		oframe->dataSize = width * height * 3;
+		oframe->height = height;
+		oframe->width = width;
+		oframe->stride = width * 3;
+		oframe->timestamp = timestamp;
+		oframe->sensorType = OniSensorType::ONI_SENSOR_COLOR;
+		oframe->croppingEnabled = false;
+		oframe->videoMode.resolutionX = width;
+		oframe->videoMode.resolutionY = height;
+		oframe->videoMode.fps = 30;
+		oframe->videoMode.pixelFormat = OniPixelFormat::ONI_PIXEL_FORMAT_RGB888;
 
 		openni::VideoFrameRef frame;
-		frame._setFrame(oni_frame);
+		frame._setFrame(oframe);
 		return boost::make_shared<io::ImageRGB24>(boost::make_shared<io::openni2::Openni2FrameWrapper>(frame));
 	}
 #endif

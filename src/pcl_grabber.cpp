@@ -25,7 +25,6 @@ void print_help()
 	cerr << "  -p : specify the input platform" << endl;
 	cerr << "  -d : specify the input device" << endl;
 	cerr << "  -f : use files from the specified directory" << endl;
-	cerr << "  -s : swap red and blue channels (BGR format by default)" << endl;
 	cerr << "-fps : set fps rate for file input" << endl;
 	cerr << "  -r : loop the seuqence for file input" << endl;
 	cerr << " -vc : visualise the cloud point" << endl;
@@ -38,8 +37,10 @@ void print_help()
 	cerr << "  -h : print this message" << endl;
 }
 
-int main(int argc, char **argv)
-{
+using namespace PCLGrabber;
+
+int main(int argc, char **argv) {
+
 	if (argc == 1)
 	{
 		print_help();
@@ -59,35 +60,36 @@ int main(int argc, char **argv)
 	#endif
 
 	Grabber* grabber = 0;
-	std::string file_name;
+	std::string file_name, output_path;
 	int device = 0, platform = 0;
 	float fps = 10.0;
-	bool repeat = false, swap_rb_channels = false;
+	bool repeat = false, simulated_time = false;
+	bool vis_cloud = false, vis_images = false;
+	int output_format = -1;
 
-	FileOutput<PointT, ImageT, DepthT> writer;
-	BasicViewer<PointT, ImageT, DepthT> viewer;
+	PCLGrabber::FileOutputBase* writer;
+	PCLGrabber::BasicViewerBase* viewer;
 
 	for (int i = 1; i < argc; i++)
 	{
 		if (strcmp(argv[i], "-l") == 0)
 		{
-			DeviceInput device_input;
+			PCLGrabber::DeviceInput device_input;
 			device_input.ListAllDevices();
 			return 0;
 		}
 		else if ((strcmp(argv[i], "-p") == 0) && (i < (argc - 1))) { platform = atoi(argv[++i]); }
 		else if ((strcmp(argv[i], "-d") == 0) && (i < (argc - 1))) { device = atoi(argv[++i]); }
-		else if ((strcmp(argv[i], "-w") == 0) && (i < (argc - 1))) { writer.Format(atoi(argv[++i])); }
+		else if ((strcmp(argv[i], "-w") == 0) && (i < (argc - 1))) { output_format = atoi(argv[++i]); }
 		else if ((strcmp(argv[i], "-f") == 0) && (i < (argc - 1))) {
 			file_name = argv[++i];
-			writer.SimulatedTime(true);
-			writer.OutputDir(".\\data\\" + boost::filesystem::path(argv[i]).filename().string() + "_copy\\");
+			simulated_time = true;
+			output_path = ".\\data\\" + boost::filesystem::path(file_name).filename().string() + "_copy\\";
 		}
 		else if ((strcmp(argv[i], "-fps") == 0) && (i < (argc - 1))) { fps = atof(argv[++i]); }
 		else if (strcmp(argv[i], "-r") == 0) { repeat = true; }
-		else if (strcmp(argv[i], "-vc") == 0) { viewer.VisualiseCloudPoint(true); }
-		else if (strcmp(argv[i], "-vi") == 0) { viewer.VisualiseImages(true); }
-		else if (strcmp(argv[i], "-s") == 0) { swap_rb_channels = true; }
+		else if (strcmp(argv[i], "-vc") == 0) { vis_cloud = true; }
+		else if (strcmp(argv[i], "-vi") == 0) { vis_images = true; }
 		else if (strcmp(argv[i], "-h") == 0) { print_help(); }
 	}
 
@@ -96,13 +98,34 @@ int main(int argc, char **argv)
 		catch (pcl::PCLException&) {}
 
 		if (!grabber) {
-			try { grabber = new PCLGrabber::ImageGrabberExt<PointT, ImageT, DepthT>(file_name, fps, repeat, swap_rb_channels); }
+			try { grabber = new PCLGrabber::ImageGrabberExt<PointT, ImageT, DepthT>(file_name, fps, repeat); }
 			catch (pcl::PCLException&) {}
+		}
+
+		if (grabber) {
+			writer = new FileOutput<PointT, ImageT, DepthT>();
+			viewer = new BasicViewer<PointT, ImageT, DepthT>();
 		}
 	}
 	else { //select device
-		DeviceInput* device_input = new DeviceInput();
+		PCLGrabber::DeviceInput* device_input = new PCLGrabber::DeviceInput();
+
 		grabber = device_input->GetGrabber(platform, device);
+
+		switch (device_input->GetPlatformType()) {
+		case PCLGrabber::PlatformType::OPENNI2_PLATFORM:
+			writer = new FileOutput<PointT, io::Image, io::DepthImage>();
+			viewer = new BasicViewer<PointT, io::Image, io::DepthImage>();
+			break;
+		case PCLGrabber::PlatformType::OPENNI_PLATFORM:
+			writer = new FileOutput<PointT, openni_wrapper::Image, openni_wrapper::DepthImage>();
+			viewer = new BasicViewer<PointT, openni_wrapper::Image, openni_wrapper::DepthImage>();
+			break;
+		default:
+			writer = new FileOutput<PointT, ImageT, DepthT>();
+			viewer = new BasicViewer<PointT, ImageT, DepthT>();
+			break;
+		}
 	}
 
 	if (!grabber) {
@@ -110,16 +133,26 @@ int main(int argc, char **argv)
 		return 0;
 	}
 
-	viewer.RegisterCallbacks(grabber);
-	writer.RegisterCallbacks(grabber);
+	viewer->VisualiseCloudPoint(vis_cloud);
+	viewer->VisualiseImages(vis_images);
+	viewer->RegisterCallbacks(grabber);
+
+	if (output_format != -1) {
+		writer->SimulatedTime(simulated_time);
+		if (output_path != "")
+			writer->OutputDir(output_path);
+		writer->Format(output_format);
+		writer->RegisterCallbacks(grabber);
+	}
 
 	grabber->start();
 
-	while (viewer.SpinOnce())
+	while (viewer->SpinOnce())
 		;
 
 	grabber->stop();
 
 	return 0;
+
 }
 

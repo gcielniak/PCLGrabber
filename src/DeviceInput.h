@@ -26,8 +26,10 @@
 
 using namespace std;
 
-namespace pcl
-{
+namespace PCLGrabber {
+
+	using namespace pcl;
+
 	enum PlatformType
 	{
 		OPENNI2_PLATFORM,
@@ -35,6 +37,51 @@ namespace pcl
 		ENSENSO_PLATFORM,
 		KINECT2_NATIVE_PLATFORM,
 		NO_PLATFORM
+	};
+
+	using namespace pcl::io;
+	using namespace pcl::io::openni2;
+
+	class OpenNI2DeviceExt : public OpenNI2Device {
+	public:
+		void SetMirroring(bool value) {
+			getColorVideoStream()->setMirroringEnabled(value);
+			getDepthVideoStream()->setMirroringEnabled(value);
+			getIRVideoStream()->setMirroringEnabled(value);
+		}
+	};
+
+	//OpenNI2Grabber with extended functionality which makes Asus sensors compatible with mirrored image from Kinect
+	//
+	class OpenNI2GrabberExt : public io::OpenNI2Grabber {
+	private:
+		bool mirrored_color, mirrored_depth;
+
+	public:
+		OpenNI2GrabberExt(const string& device_id = "") : 
+			io::OpenNI2Grabber(device_id), mirrored_color(false), mirrored_depth(false) {
+
+			// callbacks from the sensor to the grabber
+			device_->setColorCallback(boost::bind(&OpenNI2GrabberExt::processColorFrameExt, this, _1));
+			device_->setDepthCallback(boost::bind(&OpenNI2GrabberExt::processDepthFrameExt, this, _1));
+		}
+
+		void processColorFrameExt(openni::VideoStream& stream)	{
+			if (!mirrored_color) {
+				stream.setMirroringEnabled(true);
+				mirrored_color = true;
+			}
+
+			this->processColorFrame(stream);
+		}
+
+		void processDepthFrameExt(openni::VideoStream& stream) {
+			if (!mirrored_depth) {
+				stream.setMirroringEnabled(true);
+				mirrored_depth = true;
+			}
+			this->processDepthFrame(stream);
+		}
 	};
 
 	class DeviceInput
@@ -45,7 +92,7 @@ namespace pcl
 		vector<PlatformType> supported_platforms;
 
 	public:
-		DeviceInput() : grabber(0)
+		DeviceInput() : grabber(0), platform_type(PlatformType::NO_PLATFORM)
 		{
 #ifdef HAVE_OPENNI2
 			supported_platforms.push_back(OPENNI2_PLATFORM);
@@ -74,6 +121,10 @@ namespace pcl
 #endif
 				delete grabber;
 			}
+		}
+
+		PlatformType GetPlatformType() {
+			return platform_type;
 		}
 
 		void ListAllDevices()
@@ -163,7 +214,8 @@ namespace pcl
 					throw pcl::PCLException("DeviceInput::GetGrabber, wrong device number.");
 				ostringstream device_str;
 				device_str << "#" << device + 1;
-				grabber = new io::OpenNI2Grabber(device_str.str());
+				io::OpenNI2Grabber* g = new OpenNI2GrabberExt(device_str.str());
+				grabber = g;
 			}
 #endif
 

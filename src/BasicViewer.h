@@ -7,12 +7,25 @@
 #include <pcl/common/time.h> //fps calculations
 #include "ImageUtils.h"
 
-namespace pcl
-{
-	template <typename PointT, typename ImageT, typename DepthT>
-	class BasicViewer
-	{
+namespace PCLGrabber {
+
+	using namespace pcl;
+
+	class BasicViewerBase {
+	protected:
 		bool vis_cloud, vis_images;
+
+	public:
+		virtual void RegisterCallbacks(Grabber* grabber) = 0;
+		virtual bool SpinOnce() = 0;
+
+		void VisualiseCloudPoint(bool value) { vis_cloud = value; }
+		void VisualiseImages(bool value) { vis_images = value; }
+	};
+
+	template <typename PointT, typename ImageT, typename DepthT>
+	class BasicViewer : public BasicViewerBase
+	{
 		visualization::PCLVisualizer *visualizer;
 
 		visualization::ImageViewer *depth_viewer, *color_viewer;
@@ -22,13 +35,8 @@ namespace pcl
 		boost::shared_ptr<const PointCloud<PointT> > cloud_;
 
 	public:
-		BasicViewer() : vis_cloud(false), vis_images(false),
-			visualizer(0), depth_viewer(0), color_viewer(0)
-		{
+		BasicViewer() : visualizer(0), depth_viewer(0), color_viewer(0)	{
 		}
-
-		void VisualiseCloudPoint(bool value) { vis_cloud = value; }
-		void VisualiseImages(bool value) { vis_images = value; }
 
 		void cloud_cb_(const boost::shared_ptr<const PointCloud<PointT> >& cloud)
 		{
@@ -45,13 +53,12 @@ namespace pcl
 			FPS_CALC("IMG_VIS");
 		}
 
-		void RegisterCallbacks(Grabber* grabber)
+		virtual void RegisterCallbacks(Grabber* grabber)
 		{
 			if (vis_cloud && grabber->providesCallback<void(const boost::shared_ptr<const PointCloud<PointT> >&)>())
 			{
 				visualizer = new visualization::PCLVisualizer("PCLGrabber: point cloud");
 				visualizer->addCoordinateSystem(1.0);
-//				visualizer->setCameraPosition(0.0, -20.0, 0.0, 0.0, 0.0, 1.0);
 				visualizer->setCameraPosition(0.0, 0.0, -5.0, 0.0, -1.0, 0.0);
 
 				boost::function<void(const boost::shared_ptr<const PointCloud<PointT> >&)> f_viscloud =
@@ -61,28 +68,28 @@ namespace pcl
 
 			if (vis_images)
 			{
-				if (grabber->providesCallback<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthT>&, const boost::shared_ptr<ImageT>&)>())
-				{
+				if (grabber->providesCallback<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthT>&, const boost::shared_ptr<ImageT>&)>()) {
 					boost::function<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthT>&, const boost::shared_ptr<ImageT>&)> f_image =
 						boost::bind(&BasicViewer::image_callback, this, _3, _2);
 					grabber->registerCallback(f_image);
+				} else if (grabber->providesCallback<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthT>&, float flength)>()) {
 
-					color_viewer = new visualization::ImageViewer("PCLGrabber: color image");
-					depth_viewer = new visualization::ImageViewer("PCLGrabber: depth image");
-				}
-				else if (grabber->providesCallback<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthT>&, float flength)>())
-				{
 					boost::function<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthT>&, float flength)> f_image =
 						boost::bind(&BasicViewer::image_callback, this, _1, _2);
 					grabber->registerCallback(f_image);
-
-					color_viewer = new visualization::ImageViewer("PCLGrabber: color image");
-					depth_viewer = new visualization::ImageViewer("PCLGrabber: depth image");
 				}
+				else {
+					return;
+				}
+
+				color_viewer = new visualization::ImageViewer("PCLGrabber: color image");
+				depth_viewer = new visualization::ImageViewer("PCLGrabber: depth image");
+				color_viewer->setWindowTitle("PCLGrabber: color image");//the constructor does not seem to initialise the name correctly in all circumstances
+				depth_viewer->setWindowTitle("PCLGrabber: depth image");
 			}
 		}
 
-		bool SpinOnce()
+		virtual bool SpinOnce()
 		{
 			boost::shared_ptr<ImageT> color_image;
 			boost::shared_ptr<DepthT> depth_image;
@@ -102,17 +109,9 @@ namespace pcl
 						visualization::PointCloudColorHandlerRGBField<PointT> color_h(cloud);
 						if (!visualizer->updatePointCloud<PointT>(cloud, color_h))
 							visualizer->addPointCloud<PointT>(cloud, color_h);
-
-						/*
-						Eigen::Quaternionf orient = cloud->sensor_orientation_;
-						Eigen::Vector4f origin = cloud->sensor_origin_;
-
-						cerr << "Orient x: " << orient.x() << ", y: " << orient.y() << ", z: " << orient.z() << ", w: " << orient.w() << endl;
-						cerr << "Origin x: " << origin.x() << ", y: " << origin.y() << ", z: " << origin.z() << endl;
-						*/
 					}
 
-					visualizer->spinOnce(10);
+					visualizer->spinOnce();
 				}
 
 				if (depth_viewer && color_viewer)
@@ -129,8 +128,8 @@ namespace pcl
 					if (color_image)
 						color_viewer->showRGBImage(GetRGBBuffer(color_image), GetWidth(color_image), GetHeight(color_image));
 
-					depth_viewer->spinOnce(100);
-					color_viewer->spinOnce(100);
+					depth_viewer->spinOnce();
+					color_viewer->spinOnce();
 				}
 				return true;
 			}
