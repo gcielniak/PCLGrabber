@@ -47,46 +47,32 @@ namespace PCLGrabber
 
 	template <typename PointT, typename ImageT, typename DepthImageT>
 	class FileOutput : public FileOutputBase {
-		int image_counter;
+		boost::posix_time::ptime sensor_time_start, sensor_timestamp_first;
 
 	public:
-		FileOutput() : image_counter(0), sensor_timestamp_start(0) {}
+		FileOutput() : sensor_timestamp_first(boost::posix_time::not_a_date_time) {}
 
-		void WritePCD(const boost::shared_ptr<const PointCloud<PointT> >& cloud)
-		{
-			string timestamp = boost::posix_time::to_iso_string(boost::posix_time::microsec_clock::local_time());
+		void WritePCD(const boost::shared_ptr<const PointCloud<PointT> >& cloud) {
 
 			if (!boost::filesystem::exists(boost::filesystem::path(output_data_path)))
 				boost::filesystem::create_directories(boost::filesystem::path(output_data_path));
 
-			boost::posix_time::ptime current_time = boost::posix_time::microsec_clock::local_time();
+			//cloud timestamp: can be simulated from filename or timestamp from the sensor
+			boost::posix_time::ptime cloud_timestamp = from_us(cloud->header.stamp);
 
-			long long cloud_timestamp = cloud->header.stamp;
-
-			if (!sensor_timestamp_start)//first frame
-			{
-				sensor_time_start = current_time;
-				sensor_timestamp_start = cloud_timestamp;
-			}
-
-			long long cloud_timedelta = cloud_timestamp - sensor_timestamp_start;
-
-			boost::posix_time::ptime corrected_time = sensor_time_start + boost::posix_time::microseconds(cloud_timedelta);
-
-			string time_string;
-
-			if (simulated_time)
-			{
-				time_string = boost::posix_time::to_iso_string(from_us(cloud_timestamp));
-			}
-			else
-			{
-				time_string = boost::posix_time::to_iso_string(corrected_time);
+			//if timestamp from sensor then calculate offset from the current time
+			if (!simulated_time) {
+				if (sensor_timestamp_first.is_not_a_date_time()) {//first frame
+					sensor_time_start = boost::posix_time::microsec_clock::local_time();
+					sensor_timestamp_first = cloud_timestamp;
+				}
+				//correct
+				cloud_timestamp += sensor_time_start - sensor_timestamp_first;
 			}
 
 			std::stringstream file_name;
 			
-			file_name << "frame_" << time_string << ".pcd";
+			file_name << "frame_" << boost::posix_time::to_iso_string(cloud_timestamp) << ".pcd";
 
 			io::savePCDFileBinaryCompressed<PointT>(output_data_path + file_name.str(), *cloud);
 
@@ -98,40 +84,25 @@ namespace PCLGrabber
 			return boost::posix_time::from_time_t(us / 1000000) + boost::posix_time::microseconds(us % 1000000);
 		}
 
-		long long sensor_timestamp_start;
-		boost::posix_time::ptime sensor_time_start;
-
 		void WriteImage(const boost::shared_ptr<ImageT>& color_image, const boost::shared_ptr<DepthImageT>& depth_image, const boost::shared_ptr<ImageT>& orig_image)
 		{
 			io::LZFDepth16ImageWriter depth_writer;
 			io::LZFRGB24ImageWriter color_writer;
 
-			boost::posix_time::ptime current_time = boost::posix_time::microsec_clock::local_time();
+			//cloud timestamp: can be simulated from filename or timestamp from the sensor
+			boost::posix_time::ptime depth_timestamp = from_us(GetTimeStamp(depth_image));
 
-			long long depth_timestamp = GetTimeStamp(depth_image);
-
-			if (!sensor_timestamp_start)//first frame
-			{
-				sensor_time_start = current_time;
-				sensor_timestamp_start = depth_timestamp;
+			//if timestamp from sensor then calculate offset from the current time
+			if (!simulated_time) {
+				if (sensor_timestamp_first.is_not_a_date_time()) {//first frame
+					sensor_time_start = boost::posix_time::microsec_clock::local_time();
+					sensor_timestamp_first = depth_timestamp;
+				}
+				//correct
+				depth_timestamp += sensor_time_start - sensor_timestamp_first;
 			}
 
-			long long depth_timedelta = depth_timestamp - sensor_timestamp_start;
-
-			boost::posix_time::ptime corrected_time = sensor_time_start + boost::posix_time::microseconds(depth_timedelta);
-
-			string time_string;
-
-			if (simulated_time)
-			{
-				time_string = boost::posix_time::to_iso_string(from_us(depth_timestamp));
-			}
-			else
-			{
-				time_string = boost::posix_time::to_iso_string(corrected_time);
-				//time_string = boost::posix_time::to_iso_string(current_time);
-			}
-
+			string time_string = boost::posix_time::to_iso_string(depth_timestamp);
 
 			if (!boost::filesystem::exists(boost::filesystem::path(output_data_path)))
 				boost::filesystem::create_directories(boost::filesystem::path(output_data_path));

@@ -403,6 +403,8 @@ namespace pcl
 
 		boost::shared_ptr<const PointCloud<PointT> > convertToPointCloud(RGBQUAD* colorBuffer)
 		{
+			static long long pcloud_counter = 0;
+
 			UpdateMapping(depthBuffer);
 
 			int color_size = colorWidth*colorHeight;
@@ -414,6 +416,8 @@ namespace pcl
 			cloud->height = static_cast<uint32_t>(depthHeight);
 			cloud->is_dense = false;
 			cloud->points.resize(cloud_size);
+			cloud->header.stamp = depth_timestamp;
+			cloud->header.seq = pcloud_counter++;
 
 			PointT* pt = &cloud->points[0];
 			CameraSpacePoint* csp = &camera_space_points[0];
