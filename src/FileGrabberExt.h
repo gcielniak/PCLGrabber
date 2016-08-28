@@ -4,7 +4,7 @@
 #include "ImageReaderExt.h"
 
 #ifdef HAVE_KINECT2_NATIVE
-#include "kinect2_grabber.h"
+#include "Kinect2NativeGrabber.h"
 #endif
 
 namespace PCLGrabber

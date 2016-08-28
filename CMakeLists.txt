@@ -5,8 +5,14 @@ set (EXTRA_INCLUDE_DIRS "")
 set (EXTRA_LIBRARY_DIRS "")
 set (EXTRA_LIBRARIES "")
 
-
 if(WIN32)
+ADD_DEFINITIONS(/bigobj)
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj")
+SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /bigobj")
+SET(CMAKE_CXX_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL} /bigobj")
+SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /bigobj")
+SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /bigobj")
+
   if(EXISTS "$ENV{KINECTSDK20_DIR}")
     set(EXTRA_INCLUDE_DIRS "$ENV{KINECTSDK20_DIR}/inc")
     set(EXTRA_LIBRARY_DIRS "$ENV{KINECTSDK20_DIR}/lib/x64/")
@@ -31,5 +37,16 @@ include_directories(${PCL_INCLUDE_DIRS} ${EXTRA_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS} ${EXTRA_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
-add_executable(${CMAKE_PROJECT_NAME} src/pcl_grabber.cpp)
+set (SOURCES
+	src/BasicViewer.h
+	src/DeviceInput.h
+	src/EnsensoGrabberExt.h
+	src/FileGrabberExt.h
+	src/FileOutput.h
+	src/ImageReaderExt.h
+	src/ImageUtils.h
+	src/Kinect2NativeGrabber.h
+	src/PCLGrabber.cpp)
+	
+add_executable(${CMAKE_PROJECT_NAME} ${SOURCES})
 target_link_libraries(${CMAKE_PROJECT_NAME} ${PCL_COMMON_LIBRARIES} ${PCL_IO_LIBRARIES} ${PCL_VISUALIZATION_LIBRARIES} ${EXTRA_LIBRARIES})

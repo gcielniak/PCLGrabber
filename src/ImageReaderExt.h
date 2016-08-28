@@ -24,7 +24,7 @@ namespace pcl {
 		/** Empty destructor */
 		virtual ~LZFRGB24ImageReaderExt() {}
 
-		boost::shared_ptr<ImageT> read(const std::string &filename, vector<unsigned char>& buffer, const ColorFormat color_format=CF_BGR)
+		boost::shared_ptr<ImageT> read(const std::string &filename, vector<unsigned char>& buffer, const ColorFormat color_format = CF_BGR)
 		{
 			uint32_t uncompressed_size;
 			std::vector<char> compressed_data;

@@ -35,7 +35,7 @@ namespace PCLGrabber {
 		boost::shared_ptr<const PointCloud<PointT> > cloud_;
 
 	public:
-		BasicViewer() : visualizer(0), depth_viewer(0), color_viewer(0)	{
+		BasicViewer() : visualizer(0), depth_viewer(0), color_viewer(0) {
 		}
 
 		void cloud_cb_(const boost::shared_ptr<const PointCloud<PointT> >& cloud)
@@ -72,7 +72,8 @@ namespace PCLGrabber {
 					boost::function<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthT>&, const boost::shared_ptr<ImageT>&)> f_image =
 						boost::bind(&BasicViewer::image_callback, this, _3, _2);
 					grabber->registerCallback(f_image);
-				} else if (grabber->providesCallback<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthT>&, float flength)>()) {
+				}
+				else if (grabber->providesCallback<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthT>&, float flength)>()) {
 
 					boost::function<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthT>&, float flength)> f_image =
 						boost::bind(&BasicViewer::image_callback, this, _1, _2);
@@ -99,7 +100,7 @@ namespace PCLGrabber {
 			{
 				if (visualizer)
 				{
-					if (cloud_mutex.try_lock()){
+					if (cloud_mutex.try_lock()) {
 						cloud_.swap(cloud);
 						cloud_mutex.unlock();
 					}
@@ -116,7 +117,7 @@ namespace PCLGrabber {
 
 				if (depth_viewer && color_viewer)
 				{
-					if (image_mutex.try_lock()){
+					if (image_mutex.try_lock()) {
 						depth_image_.swap(depth_image);
 						color_image_.swap(color_image);
 						image_mutex.unlock();

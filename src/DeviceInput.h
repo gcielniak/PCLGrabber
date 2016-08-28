@@ -20,7 +20,7 @@
 #include "EnsensoGrabberExt.h"
 #endif
 #ifdef HAVE_KINECT2_NATIVE
-#include "kinect2_grabber.h"
+#include "Kinect2NativeGrabber.h"
 #endif
 #endif
 
@@ -58,7 +58,7 @@ namespace PCLGrabber {
 		bool mirrored_color, mirrored_depth;
 
 	public:
-		OpenNI2GrabberExt(const string& device_id = "") : 
+		OpenNI2GrabberExt(const string& device_id = "") :
 			io::OpenNI2Grabber(device_id), mirrored_color(false), mirrored_depth(false) {
 
 			// callbacks from the sensor to the grabber
@@ -66,7 +66,7 @@ namespace PCLGrabber {
 			device_->setDepthCallback(boost::bind(&OpenNI2GrabberExt::processDepthFrameExt, this, _1));
 		}
 
-		void processColorFrameExt(openni::VideoStream& stream)	{
+		void processColorFrameExt(openni::VideoStream& stream) {
 			if (!mirrored_color) {
 				stream.setMirroringEnabled(true);
 				mirrored_color = true;

@@ -3,12 +3,6 @@
 #pragma warning( disable : 4996)
 #endif
 
-#ifdef HAVE_OPENNI
-#include <pcl/io/openni_camera/image_metadata_wrapper.h>
-#include <pcl/io/openni_camera/openni_image_rgb24.h>
-#include <pcl/io/openni_camera/openni_depth_image.h>
-#endif
-
 #include "ImageUtils.h"
 #include "BasicViewer.h"
 #include "FileOutput.h"

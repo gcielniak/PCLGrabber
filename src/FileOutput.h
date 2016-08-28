@@ -29,7 +29,7 @@ namespace PCLGrabber
 		bool simulated_time;
 
 	public:
-		FileOutputBase() : 
+		FileOutputBase() :
 			output_data_path(".\\data\\" + currentDateTime() + "\\"), format(-1), simulated_time(false) {
 		}
 
@@ -71,7 +71,7 @@ namespace PCLGrabber
 			}
 
 			std::stringstream file_name;
-			
+
 			file_name << "frame_" << boost::posix_time::to_iso_string(cloud_timestamp) << ".pcd";
 
 			io::savePCDFileBinaryCompressed<PointT>(output_data_path + file_name.str(), *cloud);

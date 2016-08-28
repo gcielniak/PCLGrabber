@@ -39,58 +39,52 @@ namespace pcl
 #endif
 
 	template < typename ImageT >
-	boost::shared_ptr<ImageT> ToImageRGB24(const unsigned char* buffer, int width, int height, long long timestamp)
-	{
-	}
-
-	template < typename ImageT >
 	boost::shared_ptr<ImageT> ToDepthImage(const unsigned short* buffer, int width, int height, float focal_length, long long timestamp) {
 	}
 
-	template < typename PointT, typename ImageT >
-	static boost::shared_ptr<ImageT> ToImage(const boost::shared_ptr<const PointCloud<PointT> >& cloud) {
-		unsigned char* buffer = new unsigned char[cloud->width*cloud->height * 3];
+#ifdef HAVE_OPENNI2
+	template <>
+	io::DepthImage::Ptr ToDepthImage<io::DepthImage>(const unsigned short* buffer, int width, int height, float focal_length, long long timestamp)
+	{
+		OniFrame *oni_frame = new OniFrame();
+		oni_frame->data = (void*)buffer;
+		oni_frame->dataSize = width * height * sizeof(unsigned short);
+		oni_frame->height = height;
+		oni_frame->width = width;
+		oni_frame->stride = width * sizeof(unsigned short);
+		oni_frame->timestamp = timestamp;
 
-		// ---[ RGB special case
-		std::vector<pcl::PCLPointField> fields;
-		int rgba_index = pcl::getFieldIndex(*cloud, "rgb", fields);
-		if (rgba_index == -1)
-			rgba_index = pcl::getFieldIndex(*cloud, "rgba", fields);
-		if (rgba_index >= 0)
-		{
-			rgba_index = fields[rgba_index].offset;
-
-			int k = 0, m = 0;
-			for (uint32_t i = 0; i < cloud->height; ++i)
-			{
-				for (uint32_t j = 0; j < cloud->width; ++j)
-				{
-					// Fill r/g/b data, assuming that the order is BGRA
-					pcl::RGB rgb;
-					memcpy(&rgb, reinterpret_cast<const char*> (&cloud->points[m++]) + rgba_index, sizeof(RGB));
-					buffer[k++] = rgb.r;
-					buffer[k++] = rgb.g;
-					buffer[k++] = rgb.b;
-				}
-			}
-		}
-
-		return ToImageRGB24<ImageT>(buffer, cloud->width, cloud->height, cloud->header.stamp);
+		openni::VideoFrameRef frame;
+		frame._setFrame(oni_frame);
+		io::FrameWrapper::Ptr frame_wrapper = boost::make_shared<io::openni2::Openni2FrameWrapper>(frame);
+		return boost::make_shared<io::DepthImage>(frame_wrapper, 0.0, focal_length, 0.0, 0.0);
 	}
+#endif
 
-	template<typename PointT, typename DepthT>
-	boost::shared_ptr<DepthT> ToDepthImage(const boost::shared_ptr<const PointCloud<PointT> >& cloud) {
-		unsigned short* buffer = new unsigned short[cloud->width*cloud->height];
+#ifdef HAVE_OPENNI
+	template <>
+	openni_wrapper::DepthImage::Ptr ToDepthImage<openni_wrapper::DepthImage>(const unsigned short* buffer, int width, int height, float focal_length, long long timestamp)
+	{
+		boost::shared_ptr< xn::DepthMetaData > frame_wrapper = boost::make_shared<xn::DepthMetaData>();
 
-		uint32_t k = 0;
-		for (uint32_t i = 0; i < cloud->height; ++i)
-			for (uint32_t j = 0; j < cloud->width; ++j)
-			{
-				buffer[k] = static_cast<unsigned short> ((*cloud)[k].z * 1000);
-				++k;
-			}
+		frame_wrapper->ReAdjust(width, height, (const XnDepthPixel*)&buffer[0]);
+		frame_wrapper->Timestamp() = timestamp;
 
-		return ToDepthImage<DepthT>(buffer, cloud->width, cloud->height, 0, cloud->header.stamp);
+		return boost::make_shared<openni_wrapper::DepthImage>(frame_wrapper, 0.0, focal_length, 0.0, 0.0);
+	}
+#endif
+
+#ifdef HAVE_OPENCV
+	template <>
+	boost::shared_ptr<CvMatExt> ToDepthImage<CvMatExt>(const unsigned short* buffer, int width, int height, float focal_length, long long timestamp)
+	{
+		return boost::make_shared<CvMatExt>(cv::Mat(height, width, CV_16UC1, (void*)buffer, width * 2), timestamp, focal_length);
+	}
+#endif
+
+	template < typename ImageT >
+	boost::shared_ptr<ImageT> ToImageRGB24(const unsigned char* buffer, int width, int height, long long timestamp)
+	{
 	}
 
 #ifdef HAVE_OPENNI2
@@ -138,45 +132,51 @@ namespace pcl
 	}
 #endif
 
-#ifdef HAVE_OPENNI2
-	template <>
-	io::DepthImage::Ptr ToDepthImage<io::DepthImage>(const unsigned short* buffer, int width, int height, float focal_length, long long timestamp)
-	{
-		OniFrame *oni_frame = new OniFrame();
-		oni_frame->data = (void*)buffer;
-		oni_frame->dataSize = width * height * sizeof(unsigned short);
-		oni_frame->height = height;
-		oni_frame->width = width;
-		oni_frame->stride = width * sizeof(unsigned short);
-		oni_frame->timestamp = timestamp;
+	template<typename PointT, typename DepthT>
+	boost::shared_ptr<DepthT> ToDepthImage(const boost::shared_ptr<const PointCloud<PointT> >& cloud) {
+		unsigned short* buffer = new unsigned short[cloud->width*cloud->height];
 
-		openni::VideoFrameRef frame;
-		frame._setFrame(oni_frame);
-		io::FrameWrapper::Ptr frame_wrapper = boost::make_shared<io::openni2::Openni2FrameWrapper>(frame);
-		return boost::make_shared<io::DepthImage>(frame_wrapper, 0.0, focal_length, 0.0, 0.0);
+		uint32_t k = 0;
+		for (uint32_t i = 0; i < cloud->height; ++i)
+			for (uint32_t j = 0; j < cloud->width; ++j)
+			{
+				buffer[k] = static_cast<unsigned short> ((*cloud)[k].z * 1000);
+				++k;
+			}
+
+		return ToDepthImage<DepthT>(buffer, cloud->width, cloud->height, 0, cloud->header.stamp);
 	}
-#endif
 
-#ifdef HAVE_OPENNI
-	template <>
-	openni_wrapper::DepthImage::Ptr ToDepthImage<openni_wrapper::DepthImage>(const unsigned short* buffer, int width, int height, float focal_length, long long timestamp)
-	{
-		boost::shared_ptr< xn::DepthMetaData > frame_wrapper = boost::make_shared<xn::DepthMetaData>();
+	template < typename PointT, typename ImageT >
+	static boost::shared_ptr<ImageT> ToImage(const boost::shared_ptr<const PointCloud<PointT> >& cloud) {
+		unsigned char* buffer = new unsigned char[cloud->width*cloud->height * 3];
 
-		frame_wrapper->ReAdjust(width, height, (const XnDepthPixel*)&buffer[0]);
-		frame_wrapper->Timestamp() = timestamp;
+		// ---[ RGB special case
+		std::vector<pcl::PCLPointField> fields;
+		int rgba_index = pcl::getFieldIndex(*cloud, "rgb", fields);
+		if (rgba_index == -1)
+			rgba_index = pcl::getFieldIndex(*cloud, "rgba", fields);
+		if (rgba_index >= 0)
+		{
+			rgba_index = fields[rgba_index].offset;
 
-		return boost::make_shared<openni_wrapper::DepthImage>(frame_wrapper, 0.0, focal_length, 0.0, 0.0);
+			int k = 0, m = 0;
+			for (uint32_t i = 0; i < cloud->height; ++i)
+			{
+				for (uint32_t j = 0; j < cloud->width; ++j)
+				{
+					// Fill r/g/b data, assuming that the order is BGRA
+					pcl::RGB rgb;
+					memcpy(&rgb, reinterpret_cast<const char*> (&cloud->points[m++]) + rgba_index, sizeof(RGB));
+					buffer[k++] = rgb.r;
+					buffer[k++] = rgb.g;
+					buffer[k++] = rgb.b;
+				}
+			}
+		}
+
+		return ToImageRGB24<ImageT>(buffer, cloud->width, cloud->height, cloud->header.stamp);
 	}
-#endif
-
-#ifdef HAVE_OPENCV
-	template <>
-	boost::shared_ptr<CvMatExt> ToDepthImage<CvMatExt>(const unsigned short* buffer, int width, int height, float focal_length, long long timestamp)
-	{
-		return boost::make_shared<CvMatExt>(cv::Mat(height, width, CV_16UC1, (void*)buffer, width * 2), timestamp, focal_length);
-	}
-#endif
 
 	template < typename ImageT >
 	unsigned char* GetRGBBuffer(const boost::shared_ptr<ImageT>&)
@@ -417,5 +417,5 @@ do \
 								    } \
 }while(false)
 
-	}
+}
 
