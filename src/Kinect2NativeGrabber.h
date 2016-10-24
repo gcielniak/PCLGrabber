@@ -227,7 +227,7 @@ namespace PCLGrabber {
 				result = colorReader->AcquireLatestFrame(&colorFrame);
 				if (SUCCEEDED(result)) {
 					// Retrieved Color Data
-					result = colorFrame->CopyConvertedFrameDataToArray(colorBuffer.size() * sizeof(RGBQUAD), reinterpret_cast<BYTE*>(&colorBuffer[0]), ColorImageFormat::ColorImageFormat_Rgba);
+					result = colorFrame->CopyConvertedFrameDataToArray(colorBuffer.size() * sizeof(RGBQUAD), reinterpret_cast<BYTE*>(&colorBuffer[0]), ColorImageFormat::ColorImageFormat_Bgra);
 
 					if (FAILED(result)) {
 						throw std::exception("Exception : IColorFrame::CopyConvertedFrameDataToArray()");
