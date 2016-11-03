@@ -55,20 +55,23 @@ namespace PCLGrabber {
 		IColorFrameReader* colorReader;
 		IDepthFrameSource* depthSource;
 		IDepthFrameReader* depthReader;
+		IInfraredFrameSource* irSource;
+		IInfraredFrameReader* irReader;
 
 		int colorWidth;
 		int colorHeight;
 		std::vector<RGBQUAD> colorBuffer;
 		TIMESPAN color_timestamp, depth_timestamp;
 
-		int depthWidth;
-		int depthHeight;
+		int depthWidth, irWidth;
+		int depthHeight, irHeight;
 		std::vector<UINT16> depthBuffer;
 
 		vector<DepthSpacePoint> depth_space_points;
 		vector<CameraSpacePoint> camera_space_points;
 		vector<ColorSpacePoint> color_space_points;
 		bool data_ready;
+		bool flip;
 
 	public:
 		Kinect2Grabber()
@@ -76,7 +79,7 @@ namespace PCLGrabber {
 			depthSource(nullptr), depthReader(nullptr), result(S_OK), colorWidth(1920),
 			colorHeight(1080), colorBuffer(), depthWidth(512), depthHeight(424),
 			depthBuffer(), running(false), quit(false), signal_PointT(nullptr),
-			data_ready(false), color_timestamp(0), depth_timestamp(0) {
+			data_ready(false), color_timestamp(0), depth_timestamp(0), flip(false) {
 
 			// Create Sensor Instance
 			result = GetDefaultKinectSensor(&sensor);
@@ -97,6 +100,11 @@ namespace PCLGrabber {
 			result = sensor->get_ColorFrameSource(&colorSource);
 			if (FAILED(result))
 				throw std::exception("Exception : IKinectSensor::get_ColorFrameSource()");
+
+			// Retrieved Infrared Frame Source
+			result = sensor->get_InfraredFrameSource(&irSource);
+			if (FAILED(result))
+				throw std::exception("Exception : IKinectSensor::get_InfraredFrameSource()");
 
 			// Retrieved Depth Frame Source
 			result = sensor->get_DepthFrameSource(&depthSource);
@@ -141,10 +149,10 @@ namespace PCLGrabber {
 			// To Reserve Depth Frame Buffer
 			depthBuffer.resize(depthWidth * depthHeight);
 
-			signal_PointT = createSignal<Signal_PointT>();
+//			signal_PointT = createSignal<Signal_PointT>();
 			signal_ImageDepth = createSignal<Signal_ImageDepth>();
-			signal_ImageDepthImage = createSignal<Signal_ImageDepthImage>();
-			signal_ImageDepthImageDepth = createSignal<Signal_ImageDepthImageDepth>();
+//			signal_ImageDepthImage = createSignal<Signal_ImageDepthImage>();
+//			signal_ImageDepthImageDepth = createSignal<Signal_ImageDepthImageDepth>();
 		}
 
 		~Kinect2Grabber() throw()
@@ -166,6 +174,8 @@ namespace PCLGrabber {
 			SafeRelease(colorReader);
 			SafeRelease(depthSource);
 			SafeRelease(depthReader);
+			SafeRelease(irSource);
+			SafeRelease(irReader);
 
 			thread.join();
 		}
@@ -186,6 +196,11 @@ namespace PCLGrabber {
 			result = depthSource->OpenReader(&depthReader);
 			if (FAILED(result))
 				throw std::exception("Exception : IDepthFrameSource::OpenReader()");
+
+			// Open Depth Frame Reader
+			result = irSource->OpenReader(&irReader);
+			if (FAILED(result))
+				throw std::exception("Exception : IInfraredFrameSource::OpenReader()");
 
 			running = true;
 
@@ -240,6 +255,7 @@ namespace PCLGrabber {
 
 				SafeRelease(colorFrame);
 
+				if (!flip) {
 				// Acquire Latest Depth Frame
 				IDepthFrame* depthFrame = nullptr;
 				result = depthReader->AcquireLatestFrame(&depthFrame);
@@ -253,29 +269,45 @@ namespace PCLGrabber {
 					depthFrame->get_RelativeTime(&depth_timestamp);
 					depth_timestamp /= 10; //convert to us
 					data_ready = true;
+					flip = !flip;
 				}
 				else
 					data_ready = false;
 
 				SafeRelease(depthFrame);
+				}
+				else {
+
+				// Acquire Latest Infrared Frame
+				IInfraredFrame* irFrame = nullptr;
+				result = irReader->AcquireLatestFrame(&irFrame);
+				if (SUCCEEDED(result)) {
+					// Retrieved Infrared Data
+					result = irFrame->CopyFrameDataToArray(depthBuffer.size(), &depthBuffer[0]);
+
+					if (FAILED(result))
+						throw std::exception("Exception : IInfraredFrame::CopyFrameDataToArray()");
+
+					irFrame->get_RelativeTime(&depth_timestamp);
+					depth_timestamp /= 10; //convert to us
+					data_ready = true;
+					flip = !flip;
+				}
+				else
+					data_ready = false;
+
+				SafeRelease(irFrame);
+				}
 
 				lock.unlock();
 
 				if (data_ready)//fire signals only if there is new depth data
 				{
-					mapping_updated = false;
-
-					if (signal_PointT->num_slots())
-						signal_PointT->operator()(convertToPointCloud(&colorBuffer[0]));
+					if (flip)
+						mapping_updated = false;
 
 					if (signal_ImageDepth->num_slots())
-						signal_ImageDepth->operator()(convertColorImageReg(colorBuffer), convertDepthImage(depthBuffer), 1.0);
-
-					if (signal_ImageDepthImage->num_slots())
-						signal_ImageDepthImage->operator()(convertColorImageReg(colorBuffer), convertDepthImage(depthBuffer), convertColorImageOrig(colorBuffer));
-
-					if (signal_ImageDepthImageDepth->num_slots())
-						signal_ImageDepthImageDepth->operator()(convertColorImageOrig(colorBuffer), convertDepthImage(depthBuffer), convertColorImageReg(colorBuffer), convertDepthImageReg(depthBuffer, depth_timestamp));
+						signal_ImageDepth->operator()(convertColorImageOrig(colorBuffer), convertDepthImageReg(depthBuffer, depth_timestamp), 1.0);
 				}
 			}
 		}

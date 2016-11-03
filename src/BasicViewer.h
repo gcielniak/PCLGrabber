@@ -124,7 +124,8 @@ namespace PCLGrabber {
 					}
 
 					if (depth_image)
-						depth_viewer->showShortImage(GetDepthBuffer(depth_image), GetWidth(depth_image), GetHeight(depth_image));
+						depth_viewer->showShortImage(GetDepthBuffer(depth_image), GetWidth(depth_image), GetHeight(depth_image), std::numeric_limits< unsigned short >::min(),
+							std::numeric_limits< unsigned short >::max(), true);
 
 					if (color_image)
 						color_viewer->showRGBImage(GetRGBBuffer(color_image), GetWidth(color_image), GetHeight(color_image));
