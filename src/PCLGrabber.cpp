@@ -68,8 +68,7 @@ int main(int argc, char **argv) {
 	{
 		if (strcmp(argv[i], "-l") == 0)
 		{
-			PCLGrabber::DeviceInput device_input;
-			device_input.ListAllDevices();
+			PCLGrabber::DeviceInput::ListAllDevices();
 			return 0;
 		}
 		else if ((strcmp(argv[i], "-p") == 0) && (i < (argc - 1))) { platform = atoi(argv[++i]); }

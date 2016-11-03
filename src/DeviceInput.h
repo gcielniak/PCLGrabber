@@ -52,7 +52,7 @@ namespace PCLGrabber {
 	};
 
 	//OpenNI2Grabber with extended functionality which makes Asus sensors compatible with mirrored image from Kinect
-	//
+	// TODO: fix the first frame on Asus sensor which is not flipped
 	class OpenNI2GrabberExt : public io::OpenNI2Grabber {
 	private:
 		bool mirrored_color, mirrored_depth;
@@ -89,11 +89,23 @@ namespace PCLGrabber {
 	private:
 		Grabber* grabber;
 		PlatformType platform_type;
-		vector<PlatformType> supported_platforms;
 
 	public:
-		DeviceInput() : grabber(0), platform_type(PlatformType::NO_PLATFORM)
-		{
+		DeviceInput() : grabber(0), platform_type(PlatformType::NO_PLATFORM) {
+		}
+
+		~DeviceInput() {
+			if (grabber) {
+
+#ifdef HAVE_ENSENSO
+				if (platform_type == ENSENSO_PLATFORM)
+					((EnsensoGrabber*)grabber)->closeDevice();
+#endif
+				delete grabber;
+			}
+		}
+
+		static void GetSupportedPlatforms(vector<PlatformType>& supported_platforms) {
 #ifdef HAVE_OPENNI2
 			supported_platforms.push_back(OPENNI2_PLATFORM);
 #endif
@@ -110,64 +122,74 @@ namespace PCLGrabber {
 #endif
 		}
 
-		~DeviceInput()
-		{
-			if (grabber)
-			{
-
-#ifdef HAVE_ENSENSO
-				if (platform_type == ENSENSO_PLATFORM)
-					((EnsensoGrabber*)grabber)->closeDevice();
-#endif
-				delete grabber;
-			}
-		}
-
 		PlatformType GetPlatformType() {
 			return platform_type;
 		}
 
-		void ListAllDevices()
-		{
-			for (unsigned int i = 0; i < supported_platforms.size(); i++)
-			{
+		static void ListAllDevices() {
+			vector<PlatformType> supported_platforms;
+			GetSupportedPlatforms(supported_platforms);
+
+			cerr << "Supported platforms:";
+
+			for (unsigned int i = 0; i < supported_platforms.size(); i++) {
+				switch (supported_platforms[i]) {
+				case OPENNI2_PLATFORM:
+					cerr << " OpenNI2";
+					break;
+				case OPENNI_PLATFORM:
+					cerr << " OpenNI";
+					break;
+				case ENSENSO_PLATFORM:
+					cerr << " Ensenso SDK";
+					break;
+				case KINECT2_NATIVE_PLATFORM:
+					cerr << " Kinect2 Native";
+					break;
+				default:
+					break;
+				}
+				if (i < (supported_platforms.size() - 1))
+					cerr << ",";
+			}
+
+			cerr << endl;
+
+			for (unsigned int i = 0; i < supported_platforms.size(); i++) {
 
 #ifdef HAVE_OPENNI2
-				if (supported_platforms[i] == OPENNI2_PLATFORM)
-				{
+				if (supported_platforms[i] == OPENNI2_PLATFORM)	{
 					cerr << "Platform " << i << ": OpenNI2" << endl;
 
 					io::openni2::OpenNI2DeviceManager device_manager;
 					size_t nr_of_devices = device_manager.getNumOfConnectedDevices();
 
-					for (size_t j = 0; j < nr_of_devices; j++)
-					{
+					for (size_t j = 0; j < nr_of_devices; j++) {
 						boost::shared_ptr<pcl::io::openni2::OpenNI2Device> device = device_manager.getDeviceByIndex(j);
 
 						cerr << " Device " << j << ": ";
 						cerr << device->getStringID() << endl;
 						cerr << "  depth FL: " << device->getDepthFocalLength() << endl;
 						cerr << "  color FL: " << device->getColorFocalLength() << endl;
-						cerr << "  IR FL: " << device->getIRFocalLength() << endl;
 						cerr << "  baseline: " << device->getBaseline() << endl;
-						cerr << "  depth reg: " << device->isDepthRegistered() << endl;
 					}
 				}
 #endif
 
 #ifdef HAVE_OPENNI
-				if (supported_platforms[i] == OPENNI_PLATFORM)
-				{
+				if (supported_platforms[i] == OPENNI_PLATFORM) {
 					cerr << "Platform " << i << ": OpenNI" << endl;
 
 					openni_wrapper::OpenNIDriver& device_manager = openni_wrapper::OpenNIDriver::getInstance();
 
 					unsigned int nr_of_devices = device_manager.getNumberDevices();
 
-					for (unsigned int j = 0; j < nr_of_devices; j++)
-					{
+					for (unsigned int j = 0; j < nr_of_devices; j++) {
+						boost::shared_ptr<openni_wrapper::OpenNIDevice> device = device_manager.getDeviceByIndex(j);
 						cerr << " Device " << j << ": ";
-						cerr << device_manager.getProductName(j) << endl;
+						cerr << device->getProductName() << endl;
+						cerr << "  depth FL: " << device->getDepthFocalLength() << endl;
+						cerr << "  color FL: " << device->getImageFocalLength() << endl;
 					}
 				}
 #endif
@@ -176,7 +198,7 @@ namespace PCLGrabber {
 #ifdef HAVE_ENSENSO
 				if (supported_platforms[i] == ENSENSO_PLATFORM)
 				{
-					cerr << "Platform " << i << ": Ensenso" << endl;
+					cerr << "Platform " << i << ": Ensenso SDK" << endl;
 
 					pcl::EnsensoGrabber device_manager;
 
@@ -187,10 +209,18 @@ namespace PCLGrabber {
 					}
 				}
 #endif
+
 #ifdef HAVE_KINECT2_NATIVE
-				if (supported_platforms[i] == KINECT2_NATIVE_PLATFORM)
-				{
-					cerr << "Platform " << i << ": Kinect2 Native" << endl;
+				if (supported_platforms[i] == KINECT2_NATIVE_PLATFORM) {
+					HRESULT result;
+					IKinectSensor* sensor;
+
+					result = GetDefaultKinectSensor(&sensor);
+					if (!FAILED(result)) {
+						cerr << "Platform " << i << ": Kinect2 Native" << endl;
+						cerr << " Device " << 0 << ": ";
+						cerr << "Kinect2" << endl;
+					}
 				}
 #endif
 #endif
@@ -199,6 +229,9 @@ namespace PCLGrabber {
 
 		Grabber* GetGrabber(int platform = 0, int device = 0)
 		{
+			vector<PlatformType> supported_platforms;
+			GetSupportedPlatforms(supported_platforms);
+
 			if (grabber)
 				throw pcl::PCLException("DeviceInput::GetGrabber, deviced already initalised.");
 

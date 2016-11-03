@@ -222,6 +222,8 @@ namespace PCLGrabber
 			if (signal_ImageDepthImageDepth->num_slots())
 				signal_ImageDepthImageDepth->operator()(image, depth, image_orig, depth_reg);
 
+			cerr << file_name << endl;
+
 			file_index++;
 		}
 
