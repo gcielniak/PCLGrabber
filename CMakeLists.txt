@@ -23,6 +23,7 @@ endif()
 
 find_package(PCL 1.3 REQUIRED COMPONENTS common io visualization)
 
+if (false)
 set(OpenCV_STATIC OFF)
 find_package( OpenCV QUIET )
 
@@ -31,6 +32,19 @@ add_definitions(-DHAVE_OPENCV)
 set (EXTRA_INCLUDE_DIRS ${EXTRA_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
 set (EXTRA_LIBRARY_DIRS ${EXTRA_LIBRARY_DIRS} ${OpenCV_LIBS})
 set (EXTRA_LIBRARIES ${EXTRA_LIBRARIES} ${OpenCV_LIBS})
+endif()
+endif()
+
+# RealSenseGrabber library
+find_path(RSGLIB_INCLUDE_DIR 
+	NAMES real_sense_grabber.h
+	PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../rs/include")
+
+if(RSGLIB_INCLUDE_DIR)
+	add_definitions(-DHAVE_REAL_SENSE)
+	set (EXTRA_INCLUDE_DIRS ${EXTRA_INCLUDE_DIRS} ${RSGLIB_INCLUDE_DIR})
+	set (EXTRA_LIBRARY_DIRS ${EXTRA_LIBRARY_DIRS} "${CMAKE_CURRENT_SOURCE_DIR}/../rs/build")
+	set (EXTRA_LIBRARIES ${EXTRA_LIBRARIES} "real_sense")
 endif()
 
 include_directories(${PCL_INCLUDE_DIRS} ${EXTRA_INCLUDE_DIRS})
@@ -41,6 +55,7 @@ set (SOURCES
 	src/BasicViewer.h
 	src/DeviceInput.h
 	src/EnsensoGrabberExt.h
+	src/RealSenseGrabberExt.h
 	src/FileGrabberExt.h
 	src/FileOutput.h
 	src/ImageReaderExt.h

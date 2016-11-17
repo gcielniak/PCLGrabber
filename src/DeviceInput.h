@@ -7,21 +7,20 @@
 #endif
 
 #ifdef HAVE_OPENNI2
-#define HAVE_ONI
 #include <pcl/io/openni2_grabber.h>
 #endif
 #ifdef HAVE_OPENNI
-#define HAVE_ONI
 #include <pcl/io/openni_grabber.h>
 #include <pcl/io/openni_camera/openni_driver.h>
 #endif
-#ifdef HAVE_ONI
 #ifdef HAVE_ENSENSO
 #include "EnsensoGrabberExt.h"
 #endif
 #ifdef HAVE_KINECT2_NATIVE
 #include "Kinect2NativeGrabber.h"
 #endif
+#ifdef HAVE_REAL_SENSE
+#include "RealSenseGrabberExt.h"
 #endif
 
 using namespace std;
@@ -36,20 +35,12 @@ namespace PCLGrabber {
 		OPENNI_PLATFORM,
 		ENSENSO_PLATFORM,
 		KINECT2_NATIVE_PLATFORM,
+		REALSENSE_PLATFORM,
 		NO_PLATFORM
 	};
 
 	using namespace pcl::io;
 	using namespace pcl::io::openni2;
-
-	class OpenNI2DeviceExt : public OpenNI2Device {
-	public:
-		void SetMirroring(bool value) {
-			getColorVideoStream()->setMirroringEnabled(value);
-			getDepthVideoStream()->setMirroringEnabled(value);
-			getIRVideoStream()->setMirroringEnabled(value);
-		}
-	};
 
 	//OpenNI2Grabber with extended functionality which makes Asus sensors compatible with mirrored image from Kinect
 	// TODO: fix the first frame on Asus sensor which is not flipped
@@ -106,19 +97,52 @@ namespace PCLGrabber {
 		}
 
 		static void GetSupportedPlatforms(vector<PlatformType>& supported_platforms) {
+#ifdef HAVE_REAL_SENSE
+			supported_platforms.push_back(REALSENSE_PLATFORM);
+#endif
 #ifdef HAVE_OPENNI2
 			supported_platforms.push_back(OPENNI2_PLATFORM);
 #endif
 #ifdef HAVE_OPENNI
 			supported_platforms.push_back(OPENNI_PLATFORM);
 #endif
-#ifdef HAVE_ONI
 #ifdef HAVE_ENSENSO
 			supported_platforms.push_back(ENSENSO_PLATFORM);
 #endif
 #ifdef HAVE_KINECT2_NATIVE
 			supported_platforms.push_back(KINECT2_NATIVE_PLATFORM);
 #endif
+		}
+
+		static void GetPresentPlatforms(vector<PlatformType>& supported_platforms) {
+#ifdef HAVE_REAL_SENSE
+			try {
+				RealSenseGrabber* rsgrabber = new RealSenseGrabber("");
+				delete rsgrabber;
+				supported_platforms.push_back(REALSENSE_PLATFORM);
+			}
+			catch (pcl::io::IOException) {}
+#endif
+#ifdef HAVE_OPENNI2
+			io::openni2::OpenNI2DeviceManager device_manager_oni2;
+			if (device_manager_oni2.getNumOfConnectedDevices())
+				supported_platforms.push_back(OPENNI2_PLATFORM);
+#endif
+#ifdef HAVE_OPENNI
+			openni_wrapper::OpenNIDriver& device_manager_oni = openni_wrapper::OpenNIDriver::getInstance();
+			if (device_manager_oni.getNumberDevices())
+				supported_platforms.push_back(OPENNI_PLATFORM);
+#endif
+#ifdef HAVE_ENSENSO
+			supported_platforms.push_back(ENSENSO_PLATFORM);
+#endif
+#ifdef HAVE_KINECT2_NATIVE
+			BOOLEAN sensor_present;
+			IKinectSensor* sensor;
+			GetDefaultKinectSensor(&sensor);
+			sensor->get_IsAvailable(&sensor_present);
+			if (sensor_present)
+				supported_platforms.push_back(KINECT2_NATIVE_PLATFORM);
 #endif
 		}
 
@@ -134,6 +158,41 @@ namespace PCLGrabber {
 
 			for (unsigned int i = 0; i < supported_platforms.size(); i++) {
 				switch (supported_platforms[i]) {
+				case REALSENSE_PLATFORM:
+					cerr << " RealSense";
+					break;
+				case OPENNI2_PLATFORM:
+					cerr << " OpenNI2";
+					break;
+				case OPENNI_PLATFORM:
+					cerr << " OpenNI";
+					break;
+				case ENSENSO_PLATFORM:
+					cerr << " Ensenso SDK";
+					break;
+				case KINECT2_NATIVE_PLATFORM:
+					cerr << " Kinect2 Native";
+					break;
+				default:
+					break;
+				}
+				if (i < (supported_platforms.size() - 1))
+					cerr << ",";
+			}
+
+			cerr << endl;
+
+			supported_platforms.clear();
+
+			GetPresentPlatforms(supported_platforms);
+
+			cerr << "Present platforms:";
+
+			for (unsigned int i = 0; i < supported_platforms.size(); i++) {
+				switch (supported_platforms[i]) {
+				case REALSENSE_PLATFORM:
+					cerr << " RealSense";
+					break;
 				case OPENNI2_PLATFORM:
 					cerr << " OpenNI2";
 					break;
@@ -157,8 +216,20 @@ namespace PCLGrabber {
 
 			for (unsigned int i = 0; i < supported_platforms.size(); i++) {
 
+#ifdef HAVE_REAL_SENSE
+				if (supported_platforms[i] == REALSENSE_PLATFORM) {
+					try {
+						RealSenseGrabber* rsgrabber = new RealSenseGrabber("");
+						cerr << " Device " << 0 << ": ";
+						cerr << rsgrabber->getName() << endl;
+						delete rsgrabber;
+					}
+					catch (pcl::io::IOException) {}
+				}
+#endif
+
 #ifdef HAVE_OPENNI2
-				if (supported_platforms[i] == OPENNI2_PLATFORM)	{
+				if (supported_platforms[i] == OPENNI2_PLATFORM) {
 					cerr << "Platform " << i << ": OpenNI2" << endl;
 
 					io::openni2::OpenNI2DeviceManager device_manager;
@@ -194,7 +265,6 @@ namespace PCLGrabber {
 				}
 #endif
 
-#ifdef HAVE_ONI
 #ifdef HAVE_ENSENSO
 				if (supported_platforms[i] == ENSENSO_PLATFORM)
 				{
@@ -212,23 +282,33 @@ namespace PCLGrabber {
 
 #ifdef HAVE_KINECT2_NATIVE
 				if (supported_platforms[i] == KINECT2_NATIVE_PLATFORM) {
-					HRESULT result;
+					BOOLEAN sensor_present;
 					IKinectSensor* sensor;
-
-					result = GetDefaultKinectSensor(&sensor);
-					if (!FAILED(result)) {
+					GetDefaultKinectSensor(&sensor);
+					sensor->get_IsAvailable(&sensor_present);
+					if (sensor_present) {
 						cerr << "Platform " << i << ": Kinect2 Native" << endl;
 						cerr << " Device " << 0 << ": ";
 						cerr << "Kinect2" << endl;
 					}
 				}
 #endif
-#endif
 			}
 		}
 
 		Grabber* GetGrabber(int platform = 0, int device = 0)
 		{
+#ifdef HAVE_OPENCV
+			typedef CvMatExt ImageT;
+			typedef CvMatExt DepthT;
+#elif HAVE_OPENNI2
+			typedef io::Image ImageT;
+			typedef io::DepthImage DepthT;
+#elif HAVE_OPENNI
+			typedef openni_wrapper::Image ImageT;
+			typedef openni_wrapper::DepthImage DepthT;
+#endif
+
 			vector<PlatformType> supported_platforms;
 			GetSupportedPlatforms(supported_platforms);
 
@@ -266,7 +346,6 @@ namespace PCLGrabber {
 			}
 #endif
 
-#ifdef HAVE_ONI
 #ifdef HAVE_ENSENSO
 			if (!grabber && (supported_platforms[platform] == ENSENSO_PLATFORM))
 			{
@@ -286,17 +365,14 @@ namespace PCLGrabber {
 
 #ifdef HAVE_KINECT2_NATIVE
 			if (!grabber && (supported_platforms[platform] == KINECT2_NATIVE_PLATFORM))
-			{
-#ifdef HAVE_OPENCV
-				grabber = new Kinect2Grabber<PointXYZRGBA, CvMatExt, CvMatExt>();
-#elif HAVE_OPENNI2
-				grabber = new Kinect2Grabber<PointXYZRGBA, io::Image, io::DepthImage>();
-#elif HAVE_OPENNI
-				grabber = new Kinect2Grabber<PointXYZRGBA, openni_wrapper::Image, openni_wrapper::DepthImage>();
+				grabber = new Kinect2Grabber<PointXYZRGBA, ImageT, DepthT>();
 #endif
-			}
+
+#ifdef HAVE_REAL_SENSE
+			if (!grabber && (supported_platforms[platform] == REALSENSE_PLATFORM))
+				grabber = new RealSenseGrabberExt<PointXYZRGBA, ImageT, DepthT>("");
 #endif
-#endif			
+
 			if (!grabber)
 				throw pcl::PCLException("DeviceInput::GetGrabber, could not initalise the specified device.");
 

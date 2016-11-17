@@ -138,7 +138,7 @@ namespace PCLGrabber
 					depth_writer.write((const char*)GetDepthBuffer(depth_image), GetWidth(depth_image), GetHeight(depth_image), output_data_path + depth_file_name.str());
 				else
 #ifdef HAVE_OPENCV
-					cv::imwrite(output_data_path + depth_file_name.str(), cv::Mat(GetHeight(depth_image), GetWidth(depth_image), CV_16UC1, (void*)GetRGBBuffer(depth_image), GetWidth(depth_image) * 2));
+					cv::imwrite(output_data_path + depth_file_name.str(), cv::Mat(GetHeight(depth_image), GetWidth(depth_image), CV_16UC1, (void*)GetDepthBuffer(depth_image), GetWidth(depth_image) * 2));
 #else
 					io::saveShortPNGFile(output_data_path + depth_file_name.str(), GetDepthBuffer(depth_image), GetWidth(depth_image), GetHeight(depth_image), 1);
 #endif
