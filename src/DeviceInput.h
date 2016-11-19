@@ -82,7 +82,7 @@ namespace PCLGrabber {
 		PlatformType platform_type;
 
 	public:
-		DeviceInput() : grabber(0), platform_type(PlatformType::NO_PLATFORM) {
+		DeviceInput() : grabber(0), platform_type(NO_PLATFORM) {
 		}
 
 		~DeviceInput() {

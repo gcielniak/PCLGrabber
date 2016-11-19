@@ -4,6 +4,7 @@
 #include <pcl/console/print.h>
 #include <boost/make_shared.hpp>
 #include <pcl/common/time.h> //fps calculations
+#include <pcl/io/io.h>
 
 #ifdef HAVE_OPENNI2
 #include <pcl/io/image_rgb24.h>
@@ -98,12 +99,12 @@ namespace pcl
 		oframe->width = width;
 		oframe->stride = width * 3;
 		oframe->timestamp = timestamp;
-		oframe->sensorType = OniSensorType::ONI_SENSOR_COLOR;
+		oframe->sensorType = ONI_SENSOR_COLOR;
 		oframe->croppingEnabled = false;
 		oframe->videoMode.resolutionX = width;
 		oframe->videoMode.resolutionY = height;
 		oframe->videoMode.fps = 30;
-		oframe->videoMode.pixelFormat = OniPixelFormat::ONI_PIXEL_FORMAT_RGB888;
+		oframe->videoMode.pixelFormat = ONI_PIXEL_FORMAT_RGB888;
 
 		openni::VideoFrameRef frame;
 		frame._setFrame(oframe);

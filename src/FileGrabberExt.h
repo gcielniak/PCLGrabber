@@ -14,7 +14,7 @@ namespace PCLGrabber
 	//A set of utilities for handling input files
 	namespace FileGrabberUtils {
 		//return all file names matching the extension ext in a given directory dir
-		static void FileNamebyExt(boost::filesystem::path const& dir, string const& ext, vector<string>& file_names) {
+		static void FileNamebyExt(const boost::filesystem::path& dir, const string& ext, vector<string>& file_names) {
 			boost::filesystem::directory_iterator pos(dir);
 			boost::filesystem::directory_iterator end;
 
@@ -32,7 +32,7 @@ namespace PCLGrabber
 		}
 
 		//check if there is at least one file name with extension ext in a given directory dir
-		static bool FileExtInDir(boost::filesystem::path& dir, string ext)
+		static bool FileExtInDir(const boost::filesystem::path& dir, const string ext)
 		{
 			boost::filesystem::directory_iterator pos(dir);
 			boost::filesystem::directory_iterator end;
@@ -100,25 +100,25 @@ namespace PCLGrabber
 		ImageGrabberExt(const std::string& dir_, float frames_per_second = 0, bool repeat = false) :
 			ImageGrabber<PointT>(CheckFiles(dir_), frames_per_second, repeat, pclzf_mode), dir(dir_), signal_ImageDepthImage(nullptr)
 		{
-			signal_Depth = createSignal<Signal_Depth>();
-			signal_Image = createSignal<Signal_Image>();
-			signal_ImageDepth = createSignal<Signal_ImageDepth>();
+            this->signal_Depth = Grabber::createSignal<typename ImageSignals<ImageT, DepthT>::Signal_Depth>();
+			this->signal_Image = Grabber::createSignal<typename ImageSignals<ImageT, DepthT>::Signal_Image>();
+			this->signal_ImageDepth = Grabber::createSignal<typename ImageSignals<ImageT, DepthT>::Signal_ImageDepth>();
 
 			//check if the folder contains original colour images (used with Kinect2)
 			if (FileGrabberUtils::FileExtInDir(boost::filesystem::path(dir_), ".pclzf_"))
-				signal_ImageDepthImage = createSignal<Signal_ImageDepthImage>();
+				signal_ImageDepthImage = Grabber::createSignal<Signal_ImageDepthImage>();
 
-			signal_ImageDepthImageDepth = createSignal<Signal_ImageDepthImageDepth>();
+			signal_ImageDepthImageDepth = Grabber::createSignal<Signal_ImageDepthImageDepth>();
 		}
 
 		virtual ~ImageGrabberExt() throw()
 		{
-			disconnect_all_slots<Signal_Depth>();
-			disconnect_all_slots<Signal_Image>();
-			disconnect_all_slots<Signal_ImageDepth>();
+			Grabber::disconnect_all_slots<typename ImageSignals<ImageT, DepthT>::Signal_Depth>();
+			Grabber::disconnect_all_slots<typename ImageSignals<ImageT, DepthT>::Signal_Image>();
+			Grabber::disconnect_all_slots<typename ImageSignals<ImageT, DepthT>::Signal_ImageDepth>();
 
-			disconnect_all_slots<Signal_ImageDepthImage>();
-			disconnect_all_slots<Signal_ImageDepthImageDepth>();
+            Grabber::disconnect_all_slots<Signal_ImageDepthImage>();
+			Grabber::disconnect_all_slots<Signal_ImageDepthImageDepth>();
 		}
 
 		boost::shared_ptr<ImageT> ToRGB24Image(const string& file_name, vector<unsigned char>& color_buffer, const string& postfix = "rgb") const
@@ -165,10 +165,10 @@ namespace PCLGrabber
 					return grabber.convertDepthImageReg(depth_buffer, GetTimeStamp(depth));
 				}
 				else {
-					return nullptr;
+					return boost::shared_ptr<DepthT>();
 				}
-#elif
-				return nullptr;
+#else
+                return boost::shared_ptr<DepthT>();
 #endif
 			}
 			else {
@@ -182,7 +182,7 @@ namespace PCLGrabber
 		*/
 		virtual void publish(const pcl::PCLPointCloud2& blob, const Eigen::Vector4f& origin, const Eigen::Quaternionf& orientation) const {
 			//standard publish method genereates points clouds only
-			ImageGrabber::publish(blob, origin, orientation);
+			ImageGrabber<PointT>::publish(blob, origin, orientation);
 
 			static int file_index = 0;
 
@@ -191,13 +191,13 @@ namespace PCLGrabber
 
 			boost::shared_ptr<DepthT> depth, depth_reg;
 			boost::shared_ptr<ImageT> image, image_orig;
-			string file_name = dir + "\\" + getDepthFileNameAtIndex(file_index);
+			string file_name = dir + "\\" + this->getDepthFileNameAtIndex(file_index);
 
-			if (signal_Depth->num_slots() || signal_ImageDepth->num_slots() ||
+			if (this->signal_Depth->num_slots() || this->signal_ImageDepth->num_slots() ||
 				(signal_ImageDepthImage && signal_ImageDepthImage->num_slots()) || signal_ImageDepthImageDepth->num_slots())
 				depth = ToDepthImage(file_name, depth_buffer);
 
-			if (signal_Image->num_slots() || signal_ImageDepth->num_slots() ||
+			if (this->signal_Image->num_slots() || this->signal_ImageDepth->num_slots() ||
 				(signal_ImageDepthImage && signal_ImageDepthImage->num_slots()) || signal_ImageDepthImageDepth->num_slots())
 				image = ToRGB24Image(file_name, image_buffer);
 
@@ -207,14 +207,14 @@ namespace PCLGrabber
 			if (signal_ImageDepthImageDepth->num_slots())
 				depth_reg = ToDepthImage(file_name, depth_reg_buffer, true);
 
-			if (signal_Depth->num_slots())
-				signal_Depth->operator()(depth);
+			if (this->signal_Depth->num_slots())
+				this->signal_Depth->operator()(depth);
 
-			if (signal_Image->num_slots())
-				signal_Image->operator()(image);
+			if (this->signal_Image->num_slots())
+				this->signal_Image->operator()(image);
 
-			if (signal_ImageDepth->num_slots())
-				signal_ImageDepth->operator()(image, depth, 0.0);
+			if (this->signal_ImageDepth->num_slots())
+				this->signal_ImageDepth->operator()(image, depth, 0.0);
 
 			if (signal_ImageDepthImage && signal_ImageDepthImage->num_slots())
 				signal_ImageDepthImage->operator()(image, depth, image_orig);
@@ -256,7 +256,7 @@ namespace PCLGrabber
 	class PCDGrabberExt : public pcl::PCDGrabber<PointT>, public ImageSignals<ImageT, DepthT> {
 	public:
 		PCDGrabberExt(const std::string& pcd_path, float frames_per_second = 0, bool repeat = false) :
-			PCDGrabber(GetPCDFileNames(pcd_path), frames_per_second, repeat) {
+			PCDGrabber<PointT>(GetPCDFileNames(pcd_path), frames_per_second, repeat) {
 			//disconnect the original OpenNI signals
 #ifdef HAVE_OPENNI
 			remove_signal<void(const boost::shared_ptr<openni_wrapper::DepthImage>&)>();
@@ -265,23 +265,23 @@ namespace PCLGrabber
 #endif
 
 			//create new universal signals
-			signal_Depth = createSignal <Signal_Depth>();
-			signal_Image = createSignal <Signal_Image>();
-			signal_ImageDepth = createSignal <Signal_ImageDepth>();
+            this->signal_Depth = Grabber::createSignal<typename ImageSignals<ImageT, DepthT>::Signal_Depth>();
+            this->signal_Image = Grabber::createSignal<typename ImageSignals<ImageT, DepthT>::Signal_Image>();
+            this->signal_ImageDepth = Grabber::createSignal<typename ImageSignals<ImageT, DepthT>::Signal_ImageDepth>();
 		}
 
 		virtual ~PCDGrabberExt() throw() {
-			disconnect_all_slots<Signal_Depth>();
-			disconnect_all_slots<Signal_Image>();
-			disconnect_all_slots<Signal_ImageDepth>();
+            Grabber::disconnect_all_slots<typename ImageSignals<ImageT, DepthT>::Signal_Depth>();
+            Grabber::disconnect_all_slots<typename ImageSignals<ImageT, DepthT>::Signal_Image>();
+            Grabber::disconnect_all_slots<typename ImageSignals<ImageT, DepthT>::Signal_ImageDepth>();
 		}
 
 	protected:
 		template<typename T>
 		void remove_signal() {
-			std::map<std::string, boost::signals2::signal_base*>::const_iterator signal_it = signals_.find(typeid (T).name());
-			if (signal_it != signals_.end())
-				signals_.erase(signal_it);
+            std::map<std::string, boost::signals2::signal_base*>::const_iterator signal_it = Grabber::signals_.find(typeid (T).name());
+			if (signal_it != Grabber::signals_.end())
+				Grabber::signals_.erase(signal_it);
 		}
 
 		/**
@@ -298,29 +298,29 @@ namespace PCLGrabber
 			FileGrabberUtils::TimestampFromFilepath(file_name, timestamp);
 			cloud->header.stamp = timestamp;
 
-			if (signal_->num_slots())
-				signal_->operator () (cloud);
+			if (this->signal_->num_slots())
+				this->signal_->operator () (cloud);
 
-			if (file_name_signal_->num_slots())
-				file_name_signal_->operator()(file_name);
+			if (this->file_name_signal_->num_slots())
+				this->file_name_signal_->operator()(file_name);
 
 			boost::shared_ptr<DepthT> depth;
 			boost::shared_ptr<ImageT> image;
 
-			if (signal_Depth->num_slots() || signal_ImageDepth->num_slots())
+			if (this->signal_Depth->num_slots() || this->signal_ImageDepth->num_slots())
 				depth = ToDepthImage<PointT, DepthT>(cloud);
 
-			if (signal_Image->num_slots() || signal_ImageDepth->num_slots())
+			if (this->signal_Image->num_slots() || this->signal_ImageDepth->num_slots())
 				image = ToImage<PointT, ImageT>(cloud);
 
-			if (signal_Depth->num_slots())
-				signal_Depth->operator()(depth);
+			if (this->signal_Depth->num_slots())
+				this->signal_Depth->operator()(depth);
 
-			if (signal_Image->num_slots())
-				signal_Image->operator()(image);
+			if (this->signal_Image->num_slots())
+				this->signal_Image->operator()(image);
 
-			if (signal_ImageDepth->num_slots())
-				signal_ImageDepth->operator()(image, depth, 0.0);
+			if (this->signal_ImageDepth->num_slots())
+				this->signal_ImageDepth->operator()(image, depth, 0.0);
 		}
 
 		static vector<string> GetPCDFileNames(std::string const& path_name) {

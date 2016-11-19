@@ -106,11 +106,11 @@ int main(int argc, char **argv) {
 		grabber = device_input->GetGrabber(platform, device);
 
 		switch (device_input->GetPlatformType()) {
-		case PCLGrabber::PlatformType::OPENNI2_PLATFORM:
+		case PCLGrabber::OPENNI2_PLATFORM:
 			writer = new FileOutput<PointT, io::Image, io::DepthImage>();
 			viewer = new BasicViewer<PointT, io::Image, io::DepthImage>();
 			break;
-		case PCLGrabber::PlatformType::OPENNI_PLATFORM:
+		case PCLGrabber::OPENNI_PLATFORM:
 			writer = new FileOutput<PointT, openni_wrapper::Image, openni_wrapper::DepthImage>();
 			viewer = new BasicViewer<PointT, openni_wrapper::Image, openni_wrapper::DepthImage>();
 			break;
