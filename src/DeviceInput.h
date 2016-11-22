@@ -55,15 +55,31 @@ namespace PCLGrabber {
 	//
 	class OpenNI2GrabberExt : public io::OpenNI2Grabber {
 	private:
-		bool mirrored_color, mirrored_depth;
+		bool mirrored_color, mirrored_depth, mirrored_ir;
+
+		template<typename T>
+		void remove_signal() {
+			std::map<std::string, boost::signals2::signal_base*>::const_iterator signal_it = signals_.find(typeid (T).name());
+			if (signal_it != signals_.end())
+				signals_.erase(signal_it);
+		}
 
 	public:
 		OpenNI2GrabberExt(const string& device_id = "") :
-			io::OpenNI2Grabber(device_id), mirrored_color(false), mirrored_depth(false) {
+			io::OpenNI2Grabber(device_id), mirrored_color(false), mirrored_depth(false), mirrored_ir(false) {
+
+			remove_signal<void(const Image::Ptr&)>();
+			remove_signal<void(const DepthImage::Ptr&)>();
+			remove_signal<void(const Image::Ptr&, const DepthImage::Ptr&, float)>();
 
 			// callbacks from the sensor to the grabber
-			device_->setColorCallback(boost::bind(&OpenNI2GrabberExt::processColorFrameExt, this, _1));
-			device_->setDepthCallback(boost::bind(&OpenNI2GrabberExt::processDepthFrameExt, this, _1));
+//			device_->setColorCallback(boost::bind(&OpenNI2GrabberExt::processColorFrameExt, this, _1));
+//			device_->setDepthCallback(boost::bind(&OpenNI2GrabberExt::processDepthFrameExt, this, _1));
+//			device_->setIRCallback(boost::bind(&OpenNI2GrabberExt::processIRFrameExt, this, _1));
+
+			boost::function<void(const IRImage::Ptr&)> f_ir =
+				boost::bind(&OpenNI2GrabberExt::IRFrame, this, _1);
+			this->registerCallback(f_ir);
 		}
 
 		void processColorFrameExt(openni::VideoStream& stream) {
@@ -71,7 +87,6 @@ namespace PCLGrabber {
 				stream.setMirroringEnabled(true);
 				mirrored_color = true;
 			}
-
 			this->processColorFrame(stream);
 		}
 
@@ -81,6 +96,10 @@ namespace PCLGrabber {
 				mirrored_depth = true;
 			}
 			this->processDepthFrame(stream);
+		}
+
+		void IRFrame(const IRImage::Ptr& ir_image) {
+			cerr << "IRFrame" << endl;
 		}
 	};
 
