@@ -137,11 +137,9 @@ namespace PCLGrabber {
 			supported_platforms.push_back(ENSENSO_PLATFORM);
 #endif
 #ifdef HAVE_KINECT2_NATIVE
-			BOOLEAN sensor_present;
 			IKinectSensor* sensor;
 			GetDefaultKinectSensor(&sensor);
-			sensor->get_IsAvailable(&sensor_present);
-			if (sensor_present)
+			if (sensor)
 				supported_platforms.push_back(KINECT2_NATIVE_PLATFORM);
 #endif
 		}
@@ -282,11 +280,9 @@ namespace PCLGrabber {
 
 #ifdef HAVE_KINECT2_NATIVE
 				if (supported_platforms[i] == KINECT2_NATIVE_PLATFORM) {
-					BOOLEAN sensor_present;
 					IKinectSensor* sensor;
 					GetDefaultKinectSensor(&sensor);
-					sensor->get_IsAvailable(&sensor_present);
-					if (sensor_present) {
+					if (sensor) {
 						cerr << "Platform " << i << ": Kinect2 Native" << endl;
 						cerr << " Device " << 0 << ": ";
 						cerr << "Kinect2" << endl;
@@ -310,7 +306,7 @@ namespace PCLGrabber {
 #endif
 
 			vector<PlatformType> supported_platforms;
-			GetSupportedPlatforms(supported_platforms);
+			GetPresentPlatforms(supported_platforms);
 
 			if (grabber)
 				throw pcl::PCLException("DeviceInput::GetGrabber, deviced already initalised.");
