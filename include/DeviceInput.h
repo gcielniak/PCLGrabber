@@ -124,9 +124,10 @@ namespace PCLGrabber {
 			catch (pcl::io::IOException) {}
 #endif
 #ifdef HAVE_OPENNI2
-			io::openni2::OpenNI2DeviceManager device_manager_oni2;
-			if (device_manager_oni2.getNumOfConnectedDevices())
-				supported_platforms.push_back(OPENNI2_PLATFORM);
+//there is some strange bug with OpenNI2 which needs to be investigated. No support for openni2 at present.
+//			boost::shared_ptr<io::openni2::OpenNI2DeviceManager> device_manager_oni2 = io::openni2::OpenNI2DeviceManager::getInstance();
+//			if (device_manager_oni2->getNumOfConnectedDevices())
+//				supported_platforms.push_back(OPENNI2_PLATFORM);
 #endif
 #ifdef HAVE_OPENNI
 			openni_wrapper::OpenNIDriver& device_manager_oni = openni_wrapper::OpenNIDriver::getInstance();
@@ -139,8 +140,10 @@ namespace PCLGrabber {
 #ifdef HAVE_KINECT2_NATIVE
 			IKinectSensor* sensor;
 			GetDefaultKinectSensor(&sensor);
-			if (sensor)
+			if (sensor) {
 				supported_platforms.push_back(KINECT2_NATIVE_PLATFORM);
+				sensor->Release();
+			}
 #endif
 		}
 
@@ -230,11 +233,11 @@ namespace PCLGrabber {
 				if (supported_platforms[i] == OPENNI2_PLATFORM) {
 					cerr << "Platform " << i << ": OpenNI2" << endl;
 
-					io::openni2::OpenNI2DeviceManager device_manager;
-					size_t nr_of_devices = device_manager.getNumOfConnectedDevices();
+					boost::shared_ptr<io::openni2::OpenNI2DeviceManager> device_manager = io::openni2::OpenNI2DeviceManager::getInstance();
+					size_t nr_of_devices = device_manager->getNumOfConnectedDevices();
 
 					for (size_t j = 0; j < nr_of_devices; j++) {
-						boost::shared_ptr<pcl::io::openni2::OpenNI2Device> device = device_manager.getDeviceByIndex(j);
+						boost::shared_ptr<pcl::io::openni2::OpenNI2Device> device = device_manager->getDeviceByIndex(j);
 
 						cerr << " Device " << j << ": ";
 						cerr << device->getStringID() << endl;
@@ -286,6 +289,7 @@ namespace PCLGrabber {
 						cerr << "Platform " << i << ": Kinect2 Native" << endl;
 						cerr << " Device " << 0 << ": ";
 						cerr << "Kinect2" << endl;
+						sensor->Release();
 					}
 				}
 #endif
