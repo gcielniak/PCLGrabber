@@ -124,14 +124,12 @@ namespace PCLGrabber {
 			catch (pcl::io::IOException) {}
 #endif
 #ifdef HAVE_OPENNI2
-//there is some strange bug with OpenNI2 which needs to be investigated. No support for openni2 at present.
-//			boost::shared_ptr<io::openni2::OpenNI2DeviceManager> device_manager_oni2 = io::openni2::OpenNI2DeviceManager::getInstance();
-//			if (device_manager_oni2->getNumOfConnectedDevices())
-//				supported_platforms.push_back(OPENNI2_PLATFORM);
+			if (io::openni2::OpenNI2DeviceManager::getInstance()->getNumOfConnectedDevices())
+				supported_platforms.push_back(OPENNI2_PLATFORM);
+			openni::OpenNI::shutdown();//otherwise can cause some memory leaks;
 #endif
 #ifdef HAVE_OPENNI
-			openni_wrapper::OpenNIDriver& device_manager_oni = openni_wrapper::OpenNIDriver::getInstance();
-			if (device_manager_oni.getNumberDevices())
+			if (openni_wrapper::OpenNIDriver::getInstance().getNumberDevices())
 				supported_platforms.push_back(OPENNI_PLATFORM);
 #endif
 #ifdef HAVE_ENSENSO
