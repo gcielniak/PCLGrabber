@@ -22,6 +22,9 @@
 #ifdef HAVE_REAL_SENSE
 #include "RealSenseGrabberExt.h"
 #endif
+#ifdef HAVE_ZED
+#include "ZEDGrabber.h"
+#endif
 
 using namespace std;
 
@@ -36,6 +39,7 @@ namespace PCLGrabber {
 		ENSENSO_PLATFORM,
 		KINECT2_NATIVE_PLATFORM,
 		REALSENSE_PLATFORM,
+		ZED_PLATFORM,
 		NO_PLATFORM
 	};
 
@@ -112,6 +116,9 @@ namespace PCLGrabber {
 #ifdef HAVE_KINECT2_NATIVE
 			supported_platforms.push_back(KINECT2_NATIVE_PLATFORM);
 #endif
+#ifdef HAVE_ZED
+			supported_platforms.push_back(ZED_PLATFORM);
+#endif
 		}
 
 		static void GetPresentPlatforms(vector<PlatformType>& supported_platforms) {
@@ -143,6 +150,9 @@ namespace PCLGrabber {
 				sensor->Release();
 			}
 #endif
+#ifdef HAVE_ZED
+			supported_platforms.push_back(ZED_PLATFORM);
+#endif
 		}
 
 		PlatformType GetPlatformType() {
@@ -167,10 +177,13 @@ namespace PCLGrabber {
 					cerr << " OpenNI";
 					break;
 				case ENSENSO_PLATFORM:
-					cerr << " Ensenso SDK";
+					cerr << " Ensenso";
 					break;
 				case KINECT2_NATIVE_PLATFORM:
 					cerr << " Kinect2 Native";
+					break;
+				case ZED_PLATFORM:
+					cerr << " ZED";
 					break;
 				default:
 					break;
@@ -199,10 +212,13 @@ namespace PCLGrabber {
 					cerr << " OpenNI";
 					break;
 				case ENSENSO_PLATFORM:
-					cerr << " Ensenso SDK";
+					cerr << " Ensenso";
 					break;
 				case KINECT2_NATIVE_PLATFORM:
 					cerr << " Kinect2 Native";
+					break;
+				case ZED_PLATFORM:
+					cerr << " ZED";
 					break;
 				default:
 					break;
@@ -369,6 +385,11 @@ namespace PCLGrabber {
 #ifdef HAVE_REAL_SENSE
 			if (!grabber && (supported_platforms[platform] == REALSENSE_PLATFORM))
 				grabber = new RealSenseGrabberExt<PointXYZRGBA, ImageT, DepthT>("");
+#endif
+
+#ifdef HAVE_ZED
+			if (!grabber && (supported_platforms[platform] == ZED_PLATFORM))
+				grabber = new ZEDGrabber<PointXYZRGBA, ImageT, DepthT>();
 #endif
 
 			if (!grabber)

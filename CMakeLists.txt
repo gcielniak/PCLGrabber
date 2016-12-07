@@ -55,6 +55,37 @@ if(RSGLIB_INCLUDE_DIR)
 	set (EXTRA_LIBRARIES ${EXTRA_LIBRARIES} real_sense)
 endif()
 
+# ZED camera support
+
+if (DEFINED ENV{ZED_INCLUDE_DIRS})
+    add_definitions(-DHAVE_ZED)
+
+IF(WIN32) # Windows
+	set (EXTRA_INCLUDE_DIRS ${EXTRA_INCLUDE_DIRS} $ENV{ZED_INCLUDE_DIRS})
+	set (EXTRA_LIBRARY_DIRS ${EXTRA_LIBRARY_DIRS} $ENV{ZED_LIBRARY_DIR})
+	set (EXTRA_LIBRARIES ${EXTRA_LIBRARIES} $ENV{ZED_LIBRARIES_64})
+ELSE() # Linux
+    find_package(ZED 1.0 REQUIRED)
+    find_package(Eigen3 REQUIRED)
+    
+    ##For Jetson, OpenCV4Tegra is based on OpenCV2.4
+    exec_program(uname ARGS -p OUTPUT_VARIABLE CMAKE_SYSTEM_NAME2)
+    if ( CMAKE_SYSTEM_NAME2 MATCHES "aarch64" OR CMAKE_SYSTEM_NAME2 MATCHES "armv7l" )
+        SET(OCV_VERSION "2.4")
+        SET(CUDA_VERSION "")
+    endif()
+ENDIF(WIN32)
+
+find_package(OpenCV ${OCV_VERSION} COMPONENTS core highgui imgproc REQUIRED)
+find_package(CUDA ${CUDA_VERSION} REQUIRED)
+
+set (EXTRA_INCLUDE_DIRS ${EXTRA_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS})
+set (EXTRA_INCLUDE_DIRS ${EXTRA_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
+set (EXTRA_LIBRARY_DIRS ${EXTRA_LIBRARY_DIRS} ${CUDA_LIBRARY_DIRS})
+set (EXTRA_LIBRARY_DIRS ${EXTRA_LIBRARY_DIRS} ${OpenCV_LIBRARY_DIRS})
+
+endif ($ENV{ZED_INCLUDE_DIRS})
+
 include_directories(${EXTRA_INCLUDE_DIRS})
 link_directories(${EXTRA_LIBRARY_DIRS})
 
@@ -68,6 +99,7 @@ set (SOURCES
 	include/ImageReaderExt.h
 	include/ImageUtils.h
 	include/Kinect2NativeGrabber.h
+	include/ZEDGrabber.h
 	src/PCLGrabber.cpp)
 	
 add_executable(${CMAKE_PROJECT_NAME} ${SOURCES})
