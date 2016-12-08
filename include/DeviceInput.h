@@ -151,7 +151,8 @@ namespace PCLGrabber {
 			}
 #endif
 #ifdef HAVE_ZED
-			supported_platforms.push_back(ZED_PLATFORM);
+			if (PCLGrabber::ZEDGrabberBase::NumberDevices())
+				supported_platforms.push_back(ZED_PLATFORM);
 #endif
 		}
 
@@ -305,6 +306,15 @@ namespace PCLGrabber {
 						cerr << "Kinect2" << endl;
 						sensor->Release();
 					}
+				}
+#endif
+
+#ifdef HAVE_ZED
+				if (supported_platforms[i] == ZED_PLATFORM) {
+					int nr_of_devices = PCLGrabber::ZEDGrabberBase::NumberDevices();
+					cerr << "Platform " << i << ": ZED" << endl;
+					cerr << " Device " << 0 << ": ";
+					cerr << "ZED camera" << endl;
 				}
 #endif
 			}
