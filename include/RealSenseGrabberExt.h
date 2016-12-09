@@ -1,6 +1,6 @@
 #pragma once
 #include "ImageUtils.h"
-#include "real_sense_grabber.h"
+#include <pcl/io/real_sense_grabber.h>
 
 namespace PCLGrabber {
 	

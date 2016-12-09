@@ -1,13 +1,12 @@
 cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
 project(PCLGrabber)
 
-#PCL
 set (EXTRA_INCLUDE_DIRS include)
 set (EXTRA_LIBRARY_DIRS "")
 set (EXTRA_LIBRARIES "")
 
+#PCL
 find_package(PCL 1.3 REQUIRED)
-
 set (EXTRA_INCLUDE_DIRS ${EXTRA_INCLUDE_DIRS} ${PCL_INCLUDE_DIRS})
 set (EXTRA_LIBRARY_DIRS ${EXTRA_LIBRARY_DIRS} ${PCL_LIBRARY_DIRS})
 set (EXTRA_LIBRARIES ${EXTRA_LIBRARIES} ${PCL_LIBRARIES})
@@ -43,16 +42,9 @@ set (EXTRA_LIBRARIES ${EXTRA_LIBRARIES} ${OpenCV_LIBS})
 endif()
 endif()
 
-# RealSenseGrabber library
-find_path(RSGLIB_INCLUDE_DIR 
-	NAMES real_sense_grabber.h
-	PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../rs/include")
-
-if(RSGLIB_INCLUDE_DIR)
+# RealSense SDK PCL support
+if(EXISTS "${PCL_ROOT}/include/pcl-${PCL_VERSION_MAJOR}.${PCL_VERSION_MINOR}/pcl/io/real_sense_grabber.h")
 	add_definitions(-DHAVE_REAL_SENSE)
-	set (EXTRA_INCLUDE_DIRS ${EXTRA_INCLUDE_DIRS} ${RSGLIB_INCLUDE_DIR})
-	set (EXTRA_LIBRARY_DIRS ${EXTRA_LIBRARY_DIRS} "${CMAKE_CURRENT_SOURCE_DIR}/../rs/build")
-	set (EXTRA_LIBRARIES ${EXTRA_LIBRARIES} real_sense)
 endif()
 
 # ZED camera support
@@ -84,7 +76,7 @@ set (EXTRA_INCLUDE_DIRS ${EXTRA_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
 set (EXTRA_LIBRARY_DIRS ${EXTRA_LIBRARY_DIRS} ${CUDA_LIBRARY_DIRS})
 set (EXTRA_LIBRARY_DIRS ${EXTRA_LIBRARY_DIRS} ${OpenCV_LIBRARY_DIRS})
 
-endif ($ENV{ZED_INCLUDE_DIRS})
+endif ()
 
 include_directories(${EXTRA_INCLUDE_DIRS})
 link_directories(${EXTRA_LIBRARY_DIRS})
