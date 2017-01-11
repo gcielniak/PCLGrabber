@@ -100,7 +100,7 @@ namespace PCLGrabber
 		ImageGrabberExt(const std::string& dir_, float frames_per_second = 0, bool repeat = false) :
 			ImageGrabber<PointT>(CheckFiles(dir_), frames_per_second, repeat, pclzf_mode), dir(dir_), signal_ImageDepthImage(NULL)
 		{
-            this->signal_Depth = Grabber::createSignal<typename ImageSignals<ImageT, DepthT>::Signal_Depth>();
+			this->signal_Depth = Grabber::createSignal<typename ImageSignals<ImageT, DepthT>::Signal_Depth>();
 			this->signal_Image = Grabber::createSignal<typename ImageSignals<ImageT, DepthT>::Signal_Image>();
 			this->signal_ImageDepth = Grabber::createSignal<typename ImageSignals<ImageT, DepthT>::Signal_ImageDepth>();
 
@@ -117,7 +117,7 @@ namespace PCLGrabber
 			Grabber::disconnect_all_slots<typename ImageSignals<ImageT, DepthT>::Signal_Image>();
 			Grabber::disconnect_all_slots<typename ImageSignals<ImageT, DepthT>::Signal_ImageDepth>();
 
-            Grabber::disconnect_all_slots<Signal_ImageDepthImage>();
+			Grabber::disconnect_all_slots<Signal_ImageDepthImage>();
 			Grabber::disconnect_all_slots<Signal_ImageDepthImageDepth>();
 		}
 
@@ -168,7 +168,7 @@ namespace PCLGrabber
 					return boost::shared_ptr<DepthT>();
 				}
 #else
-                return boost::shared_ptr<DepthT>();
+				return boost::shared_ptr<DepthT>();
 #endif
 			}
 			else {
@@ -255,7 +255,7 @@ namespace PCLGrabber
 	template <typename PointT, typename ImageT, typename DepthT>
 	class PCDGrabberExt : public pcl::PCDGrabber<PointT>, public ImageSignals<ImageT, DepthT> {
 #if PCL_VERSION_COMPARE(<, 1, 8, 0)
-		boost::signals2::signal<void (const std::string&)>* file_name_signal_;
+		boost::signals2::signal<void(const std::string&)>* file_name_signal_;
 #endif
 	public:
 		PCDGrabberExt(const std::string& pcd_path, float frames_per_second = 0, bool repeat = false) :
@@ -268,25 +268,25 @@ namespace PCLGrabber
 #endif
 
 			//create new universal signals
-            this->signal_Depth = Grabber::createSignal<typename ImageSignals<ImageT, DepthT>::Signal_Depth>();
-            this->signal_Image = Grabber::createSignal<typename ImageSignals<ImageT, DepthT>::Signal_Image>();
-            this->signal_ImageDepth = Grabber::createSignal<typename ImageSignals<ImageT, DepthT>::Signal_ImageDepth>();
+			this->signal_Depth = Grabber::createSignal<typename ImageSignals<ImageT, DepthT>::Signal_Depth>();
+			this->signal_Image = Grabber::createSignal<typename ImageSignals<ImageT, DepthT>::Signal_Image>();
+			this->signal_ImageDepth = Grabber::createSignal<typename ImageSignals<ImageT, DepthT>::Signal_ImageDepth>();
 
 #if PCL_VERSION_COMPARE(<, 1, 8, 0)
-	file_name_signal_ = Grabber::createSignal<void (const std::string&)>();
+			file_name_signal_ = Grabber::createSignal<void(const std::string&)>();
 #endif
 		}
 
 		virtual ~PCDGrabberExt() throw() {
-            Grabber::disconnect_all_slots<typename ImageSignals<ImageT, DepthT>::Signal_Depth>();
-            Grabber::disconnect_all_slots<typename ImageSignals<ImageT, DepthT>::Signal_Image>();
-            Grabber::disconnect_all_slots<typename ImageSignals<ImageT, DepthT>::Signal_ImageDepth>();
+			Grabber::disconnect_all_slots<typename ImageSignals<ImageT, DepthT>::Signal_Depth>();
+			Grabber::disconnect_all_slots<typename ImageSignals<ImageT, DepthT>::Signal_Image>();
+			Grabber::disconnect_all_slots<typename ImageSignals<ImageT, DepthT>::Signal_ImageDepth>();
 		}
 
 	protected:
 		template<typename T>
 		void remove_signal() {
-            std::map<std::string, boost::signals2::signal_base*>::iterator signal_it = Grabber::signals_.find(typeid (T).name());
+			std::map<std::string, boost::signals2::signal_base*>::iterator signal_it = Grabber::signals_.find(typeid (T).name());
 			if (signal_it != Grabber::signals_.end())
 				Grabber::signals_.erase(signal_it);
 		}
