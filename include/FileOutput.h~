@@ -126,7 +126,7 @@ namespace PCLGrabber
 
 			xml_file_name << "frame_" << time_string << ".xml";
 
-			if (depth_image)
+			if (depth_image != nullptr)
 			{
 				io::CameraParameters depth_parameters;
 				depth_parameters.focal_length_x = depth_parameters.focal_length_y = GetFocalLength(depth_image);
@@ -144,7 +144,7 @@ namespace PCLGrabber
 #endif
 			}
 
-			if (color_image)
+			if (color_image != nullptr)
 			{
 				if (format == 0)
 					color_writer.write((const char*)GetRGBBuffer(color_image), GetWidth(color_image), GetHeight(color_image), output_data_path + color_file_name.str());
@@ -155,7 +155,7 @@ namespace PCLGrabber
 					io::saveRgbPNGFile(output_data_path + color_file_name.str(), GetRGBBuffer(color_image), GetWidth(color_image), GetHeight(color_image));
 #endif
 			}
-			if (orig_image)
+			if (orig_image != nullptr)
 			{
 				if (format == 0)
 					color_writer.write((const char*)GetRGBBuffer(orig_image), GetWidth(orig_image), GetHeight(orig_image), output_data_path + orig_file_name.str());

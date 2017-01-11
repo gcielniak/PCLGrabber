@@ -281,6 +281,9 @@ namespace PCLGrabber
             Grabber::disconnect_all_slots<typename ImageSignals<ImageT, DepthT>::Signal_Depth>();
             Grabber::disconnect_all_slots<typename ImageSignals<ImageT, DepthT>::Signal_Image>();
             Grabber::disconnect_all_slots<typename ImageSignals<ImageT, DepthT>::Signal_ImageDepth>();
+#if PCL_VERSION_COMPARE(<, 1, 8, 0)
+	file_name_signal_ = createSignal<void (const std::string&)>();
+#endif
 		}
 
 	protected:
