@@ -80,7 +80,7 @@ namespace PCLGrabber
 
 	//Extended ImageGrabber class.
 	//Provides support for Kinect2 grabber, including storing original colour images in full resolution
-	//and a colour-registered depth image (requires an active Kinect2 device connected to PC) 
+	//and a colour-registered depth image (requires an active Kinect2 device connected to PC)
 	template <typename PointT, typename ImageT, typename DepthT>
 	class ImageGrabberExt : public pcl::ImageGrabber < PointT >, public ImageSignals<ImageT, DepthT>
 	{
@@ -98,7 +98,7 @@ namespace PCLGrabber
 
 	public:
 		ImageGrabberExt(const std::string& dir_, float frames_per_second = 0, bool repeat = false) :
-			ImageGrabber<PointT>(CheckFiles(dir_), frames_per_second, repeat, pclzf_mode), dir(dir_), signal_ImageDepthImage(NULL)
+			ImageGrabber<PointT>(dir_, frames_per_second, repeat, PCLZFMode(dir_)), dir(dir_), signal_ImageDepthImage(NULL)
 		{
 			this->signal_Depth = Grabber::createSignal<typename ImageSignals<ImageT, DepthT>::Signal_Depth>();
 			this->signal_Image = Grabber::createSignal<typename ImageSignals<ImageT, DepthT>::Signal_Image>();
@@ -191,7 +191,10 @@ namespace PCLGrabber
 
 			boost::shared_ptr<DepthT> depth, depth_reg;
 			boost::shared_ptr<ImageT> image, image_orig;
-			string file_name = dir + "\\" + this->getDepthFileNameAtIndex(file_index);
+
+			boost::filesystem::path file_path(dir);
+            file_path /= this->getDepthFileNameAtIndex(file_index);
+			string file_name = file_path.string();
 
 			if (this->signal_Depth->num_slots() || this->signal_ImageDepth->num_slots() ||
 				(signal_ImageDepthImage && signal_ImageDepthImage->num_slots()) || signal_ImageDepthImageDepth->num_slots())
@@ -227,7 +230,7 @@ namespace PCLGrabber
 			file_index++;
 		}
 
-		string const& CheckFiles(std::string const& path_name) {
+		bool PCLZFMode(std::string const& path_name) {
 			pclzf_mode = true;
 			boost::filesystem::path path(path_name);
 
@@ -246,7 +249,7 @@ namespace PCLGrabber
 				}
 			}
 
-			return path_name;
+			return pclzf_mode;
 		}
 	};
 
