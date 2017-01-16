@@ -77,7 +77,9 @@ int main(int argc, char **argv) {
 		else if ((strcmp(argv[i], "-f") == 0) && (i < (argc - 1))) {
 			file_name = argv[++i];
 			simulated_time = true;
-			output_path = ".\\data\\" + boost::filesystem::path(file_name).filename().string() + "_copy\\";
+			if (*file_name.rbegin() == '/')//check last character so it works with Linux dirs
+                file_name = file_name.substr(0, file_name.length()-1);
+			output_path = "./data/" + boost::filesystem::path(file_name).filename().string() + "_copy/";
 		}
 		else if ((strcmp(argv[i], "-fps") == 0) && (i < (argc - 1))) { fps = atof(argv[++i]); }
 		else if (strcmp(argv[i], "-r") == 0) { repeat = true; }
