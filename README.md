@@ -11,3 +11,9 @@
 *Windows 10*: using PCL 1.8 and Visual Studio 2015
 - set up the project: `mkdir build & cd build & cmake .. -G "Visual Studio 14 2015 Win64"`;
 - to quickly build the program from a command line: `cmake --build . --config release`.
+
+## Running
+The program allows for recording, converting and visualising 3D/image data. Check all available options by running the program without input arguments.
+- to visualise: `-vc` to show point clouds and `-vi` to show images;
+- input: `-p/-d` platform/device for a sensor or `-f` for a pre-recorded file folder;
+- to record: `-w` flag. E.g. -w 2 to record data in PNG format. Can also be used with file input and then acts as a converter.
