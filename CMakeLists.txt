@@ -30,14 +30,13 @@ SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /bigobj")
 endif()
 
 #OpenCV support
-if (false)
-set(OpenCV_STATIC OFF)
-find_package( OpenCV QUIET )
+if (true)
+#set(OpenCV_STATIC OFF)
+find_package( OpenCV )
 
 if (OPENCV_FOUND)
 add_definitions(-DHAVE_OPENCV)
 set (EXTRA_INCLUDE_DIRS ${EXTRA_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
-set (EXTRA_LIBRARY_DIRS ${EXTRA_LIBRARY_DIRS} ${OpenCV_LIBS_DIR})
 set (EXTRA_LIBRARIES ${EXTRA_LIBRARIES} ${OpenCV_LIBS})
 endif()
 endif()
