@@ -126,8 +126,10 @@ namespace PCLGrabber
 
 			xml_file_name << "frame_" << time_string << ".xml";
 
+			cout << "Writing out the frame \"" << output_data_path << "frame_" << time_string << "\"" << endl;
 			if (depth_image)
 			{
+				cout << "Writing the depth image to " << output_data_path + depth_file_name.str() << endl;
 				io::CameraParameters depth_parameters;
 				depth_parameters.focal_length_x = depth_parameters.focal_length_y = GetFocalLength(depth_image);
 				depth_parameters.principal_point_x = (GetWidth(depth_image) - 1.f) / 2.f;
@@ -146,6 +148,7 @@ namespace PCLGrabber
 
 			if (color_image)
 			{
+				cout << "Writing the color image to " << output_data_path + color_file_name.str() << endl;
 				if (format == 0)
 					color_writer.write((const char*)GetRGBBuffer(color_image), GetWidth(color_image), GetHeight(color_image), output_data_path + color_file_name.str());
 				else
@@ -157,13 +160,14 @@ namespace PCLGrabber
 			}
 			if (orig_image)
 			{
+				cout << "Writing the orig image to " << output_data_path + orig_file_name.str() << endl;
 				if (format == 0)
 					color_writer.write((const char*)GetRGBBuffer(orig_image), GetWidth(orig_image), GetHeight(orig_image), output_data_path + orig_file_name.str());
 				else
 #ifdef HAVE_OPENCV
 					cv::imwrite(output_data_path + orig_file_name.str(), cv::Mat(GetHeight(orig_image), GetWidth(orig_image), CV_8UC3, (void*)GetRGBBuffer(orig_image), GetWidth(orig_image) * 3));
 #else
-					io::saveRgbPNGFile(output_data_path + color_file_name.str(), GetRGBBuffer(orig_image), GetWidth(orig_image), GetHeight(orig_image));
+					io::saveRgbPNGFile(output_data_path + orig_file_name.str(), GetRGBBuffer(orig_image), GetWidth(orig_image), GetHeight(orig_image));
 #endif
 			}
 
