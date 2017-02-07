@@ -77,6 +77,12 @@ set (EXTRA_LIBRARY_DIRS ${EXTRA_LIBRARY_DIRS} ${OpenCV_LIBRARY_DIRS})
 
 endif ()
 
+# Stemmer Library: GenICam driver
+if(EXISTS "$ENV{CVB}/Lib/C")
+    set(EXTRA_INCLUDE_DIRS ${EXTRA_INCLUDE_DIRS} "$ENV{CVB}/Lib/C")
+    set(EXTRA_LIBRARY_DIRS ${EXTRA_LIBRARY_DIRS} "$ENV{CVB}/Lib/C")
+endif()
+
 include_directories(${EXTRA_INCLUDE_DIRS})
 link_directories(${EXTRA_LIBRARY_DIRS})
 
@@ -91,6 +97,7 @@ set (SOURCES
 	include/ImageUtils.h
 	include/Kinect2NativeGrabber.h
 	include/ZEDGrabber.h
+	include/GenICamGrabber.h
 	src/PCLGrabber.cpp)
 	
 add_executable(${CMAKE_PROJECT_NAME} ${SOURCES})

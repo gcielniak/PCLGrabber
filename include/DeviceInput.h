@@ -25,6 +25,7 @@
 #ifdef HAVE_ZED
 #include "ZEDGrabber.h"
 #endif
+#include "GenICamGrabber.h"
 
 using namespace std;
 
@@ -40,6 +41,7 @@ namespace PCLGrabber {
 		KINECT2_NATIVE_PLATFORM,
 		REALSENSE_PLATFORM,
 		ZED_PLATFORM,
+		GENICAM_PLATFORM,
 		NO_PLATFORM
 	};
 
