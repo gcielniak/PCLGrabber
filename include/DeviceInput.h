@@ -25,7 +25,9 @@
 #ifdef HAVE_ZED
 #include "ZEDGrabber.h"
 #endif
+#ifdef HAVE_GENICAM
 #include "GenICamGrabber.h"
+#endif
 
 using namespace std;
 
@@ -121,6 +123,9 @@ namespace PCLGrabber {
 #ifdef HAVE_ZED
 			supported_platforms.push_back(ZED_PLATFORM);
 #endif
+#ifdef HAVE_GENICAM
+			supported_platforms.push_back(GENICAM_PLATFORM);
+#endif
 		}
 
 		static void GetPresentPlatforms(vector<PlatformType>& supported_platforms) {
@@ -148,13 +153,22 @@ namespace PCLGrabber {
 			IKinectSensor* sensor;
 			GetDefaultKinectSensor(&sensor);
 			if (sensor) {
-				supported_platforms.push_back(KINECT2_NATIVE_PLATFORM);
+				BOOLEAN available;
+				sensor->get_IsAvailable(&available);
+				if (available)
+					supported_platforms.push_back(KINECT2_NATIVE_PLATFORM);
 				sensor->Release();
 			}
 #endif
 #ifdef HAVE_ZED
 			if (PCLGrabber::ZEDGrabberBase::NumberDevices())
 				supported_platforms.push_back(ZED_PLATFORM);
+#endif
+#ifdef HAVE_GENICAM
+			GenICamera camera;
+			camera.Init();
+			if (camera.GetNrDevices() == 2)
+				supported_platforms.push_back(GENICAM_PLATFORM);
 #endif
 		}
 
@@ -187,6 +201,9 @@ namespace PCLGrabber {
 					break;
 				case ZED_PLATFORM:
 					cerr << " ZED";
+					break;
+				case GENICAM_PLATFORM:
+					cerr << " GENICAM";
 					break;
 				default:
 					break;
@@ -222,6 +239,9 @@ namespace PCLGrabber {
 					break;
 				case ZED_PLATFORM:
 					cerr << " ZED";
+					break;
+				case GENICAM_PLATFORM:
+					cerr << " GENICAM";
 					break;
 				default:
 					break;
@@ -319,6 +339,17 @@ namespace PCLGrabber {
 					cerr << "ZED camera" << endl;
 				}
 #endif
+
+#ifdef HAVE_GENICAM
+				if (supported_platforms[i] == GENICAM_PLATFORM) {
+					GenICamera camera;
+					camera.Init();
+					int nr_of_devices = camera.GetNrDevices();
+					cerr << "Platform " << i << ": GENICAM" << endl;
+					cerr << " Device " << 0 << ": ";
+					cerr << camera.GetDeviceName(0) << " and " << camera.GetDeviceName(1) << endl;
+				}
+#endif
 			}
 		}
 
@@ -404,6 +435,10 @@ namespace PCLGrabber {
 				grabber = new ZEDGrabber<PointXYZRGBA, ImageT, DepthT>();
 #endif
 
+#ifdef HAVE_GENICAM
+			if (!grabber && (supported_platforms[platform] == GENICAM_PLATFORM))
+				grabber = new GenICamGrabberBase();
+#endif
 			if (!grabber)
 				throw pcl::PCLException("DeviceInput::GetGrabber, could not initalise the specified device.");
 

@@ -45,6 +45,9 @@ namespace PCLGrabber {
 				}
 				initialised = true;
 			}
+		}
+
+		void Start() {
 			if (G2Grab(hCamera) < 0) {
 				throw std::exception("GenICamera::Capture, G2Grab function failure.");
 			}
@@ -97,10 +100,14 @@ namespace PCLGrabber {
 		string GetDeviceName(int index) {
 			stringstream device_name;
 
+			int current_index = GetCameraIndex();
+
 			if (index < GetNrDevices()) {
+				SetCamera(index);
 				device_name << GetNodeValue("DeviceFamilyName");
 				device_name << " " << GetNodeValue("DeviceModelName");
 				device_name << " by " << GetNodeValue("DeviceVendorName");
+				SetCamera(current_index);
 			}
 
 			return device_name.str();
@@ -112,6 +119,7 @@ namespace PCLGrabber {
 			if (t_start == 0.0)
 				t_start = t_now;
 			long long timestamp = (long long)(t_now - t_start);
+			return timestamp;
 		}
 
 		cv::Mat& Capture() {
@@ -135,17 +143,21 @@ namespace PCLGrabber {
 		mutable boost::mutex mutex;
 		bool quit, running;
 		GenICamera camera_1, camera_2;
-		cv::Mat image_1, image_2;
-		typedef void (Signal_ImageImage)(const boost::shared_ptr<cv::Mat>&, const boost::shared_ptr<cv::Mat>&);
+		CvMatExt image_1, image_2;
+		typedef void (Signal_ImageImage)(const boost::shared_ptr<CvMatExt>&, const boost::shared_ptr<CvMatExt>&);
 
 		boost::signals2::signal<Signal_ImageImage>* signal_ImageImage;
 
 		virtual void threadFunction() {
+			camera_1.Start();
+			camera_2.Start();
 			while (!quit) {
 				if (signal_ImageImage->num_slots()) {
-					image_1 = camera_1.Capture();
-					image_2 = camera_2.Capture();
-					signal_ImageImage->operator()(boost::make_shared<cv::Mat>(image_1), boost::make_shared<cv::Mat>(image_2));
+					image_1.image = camera_1.Capture();
+					image_2.image = camera_2.Capture();
+					image_1.timestamp = camera_1.GetTimeStamp();
+					image_2.timestamp = camera_2.GetTimeStamp();
+					signal_ImageImage->operator()(boost::make_shared<CvMatExt>(image_1), boost::make_shared<CvMatExt>(image_2));
 				}
 			}
 		}

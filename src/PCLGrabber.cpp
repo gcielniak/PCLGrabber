@@ -105,9 +105,7 @@ int main(int argc, char **argv) {
 	else { //select device
 		PCLGrabber::DeviceInput* device_input = new PCLGrabber::DeviceInput();
 
-		grabber = new GenICamGrabberBase();
-
-//		grabber = device_input->GetGrabber(platform, device);
+		grabber = device_input->GetGrabber(platform, device);
 
 		switch (device_input->GetPlatformType()) {
 		case PCLGrabber::OPENNI2_PLATFORM:

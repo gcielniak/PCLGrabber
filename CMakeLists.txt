@@ -5,6 +5,21 @@ set (EXTRA_INCLUDE_DIRS include)
 set (EXTRA_LIBRARY_DIRS "")
 set (EXTRA_LIBRARIES "")
 
+# RealSenseGrabber library
+# the built in version in PCL seems to be buggy for some reason
+# try to find stand alone library first
+# has to be called before PCL
+find_path(RSGLIB_INCLUDE_DIR 
+	NAMES real_sense_grabber.h
+	PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../rs/include")
+
+if(RSGLIB_INCLUDE_DIR)
+	add_definitions(-DHAVE_REAL_SENSE)
+	set (EXTRA_INCLUDE_DIRS ${EXTRA_INCLUDE_DIRS} ${RSGLIB_INCLUDE_DIR})
+	set (EXTRA_LIBRARY_DIRS ${EXTRA_LIBRARY_DIRS} "${CMAKE_CURRENT_SOURCE_DIR}/../rs/build")
+	set (EXTRA_LIBRARIES ${EXTRA_LIBRARIES} real_sense)
+endif()
+
 #PCL
 find_package(PCL 1.3 REQUIRED)
 set (EXTRA_INCLUDE_DIRS ${EXTRA_INCLUDE_DIRS} ${PCL_INCLUDE_DIRS})
@@ -30,20 +45,20 @@ SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /bigobj")
 endif()
 
 #OpenCV support
-if (true)
-#set(OpenCV_STATIC OFF)
-find_package( OpenCV )
+find_package(OpenCV REQUIRED)
 
 if (OPENCV_FOUND)
 add_definitions(-DHAVE_OPENCV)
 set (EXTRA_INCLUDE_DIRS ${EXTRA_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
+set (EXTRA_LIBRARY_DIRS ${EXTRA_LIBRARY_DIRS} ${OpenCV_LIBRARY_DIRS})
 set (EXTRA_LIBRARIES ${EXTRA_LIBRARIES} ${OpenCV_LIBS})
-endif()
 endif()
 
 # RealSense SDK PCL support
+if(!RSGLIB_INCLUDE_DIR)
 if(EXISTS "${PCL_ROOT}/include/pcl-${PCL_VERSION_MAJOR}.${PCL_VERSION_MINOR}/pcl/io/real_sense_grabber.h")
 	add_definitions(-DHAVE_REAL_SENSE)
+endif()
 endif()
 
 # ZED camera support
@@ -67,18 +82,16 @@ ELSE() # Linux
     endif()
 ENDIF(WIN32)
 
-find_package(OpenCV ${OCV_VERSION} COMPONENTS core highgui imgproc REQUIRED)
 find_package(CUDA ${CUDA_VERSION} REQUIRED)
 
 set (EXTRA_INCLUDE_DIRS ${EXTRA_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS})
-set (EXTRA_INCLUDE_DIRS ${EXTRA_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
 set (EXTRA_LIBRARY_DIRS ${EXTRA_LIBRARY_DIRS} ${CUDA_LIBRARY_DIRS})
-set (EXTRA_LIBRARY_DIRS ${EXTRA_LIBRARY_DIRS} ${OpenCV_LIBRARY_DIRS})
 
 endif ()
 
 # Stemmer Library: GenICam driver
 if(EXISTS "$ENV{CVB}/Lib/C")
+    add_definitions(-DHAVE_GENICAM)
     set(EXTRA_INCLUDE_DIRS ${EXTRA_INCLUDE_DIRS} "$ENV{CVB}/Lib/C")
     set(EXTRA_LIBRARY_DIRS ${EXTRA_LIBRARY_DIRS} "$ENV{CVB}/Lib/C")
 endif()
@@ -99,6 +112,6 @@ set (SOURCES
 	include/ZEDGrabber.h
 	include/GenICamGrabber.h
 	src/PCLGrabber.cpp)
-	
+
 add_executable(${CMAKE_PROJECT_NAME} ${SOURCES})
 target_link_libraries(${CMAKE_PROJECT_NAME} ${EXTRA_LIBRARIES})

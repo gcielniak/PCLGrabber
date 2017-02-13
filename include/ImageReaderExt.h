@@ -134,4 +134,53 @@ namespace pcl {
 			return ToDepthImage<ImageT>(&buffer[0], getWidth(), getHeight(), focal_point, td.total_microseconds());
 		}
 	};
+
+	class LZFBayer8ImageReaderExt : public io::LZFBayer8ImageReader
+	{
+	protected:
+		boost::posix_time::ptime epoch;
+
+	public:
+		/** Empty constructor */
+		LZFBayer8ImageReaderExt() : io::LZFBayer8ImageReader(), epoch(boost::gregorian::date(1970, 1, 1)) {}
+
+		/** Empty destructor */
+		virtual ~LZFBayer8ImageReaderExt() {}
+
+		//////////////////////////////////////////////////////////////////////////////
+		boost::shared_ptr<CvMatExt> read(const std::string &filename, std::vector<unsigned char>& buffer) {
+			uint32_t uncompressed_size;
+			std::vector<char> compressed_data;
+			if (!loadImageBlob(filename, compressed_data, uncompressed_size))
+			{
+				PCL_ERROR("[pcl::io::LZFBayer8ImageReaderExt::read] Unable to read image data from %s.\n", filename.c_str());
+				return boost::shared_ptr<CvMatExt>();
+			}
+
+			if (uncompressed_size != getWidth() * getHeight())
+			{
+				PCL_DEBUG("[pcl::io::LZFBayer8ImageReaderExt::read] Uncompressed data has wrong size (%u), while in fact it should be %u bytes. \n[pcl::io::LZFBayer8ImageReader::read] Are you sure %s is a 8-bit Bayer PCLZF file? Identifier says: %s\n", uncompressed_size, getWidth() * getHeight(), filename.c_str(), getImageType().c_str());
+				return boost::shared_ptr<CvMatExt>();
+			}
+
+			std::vector<char> uncompressed_data(uncompressed_size);
+			decompress(compressed_data, uncompressed_data);
+
+			if (uncompressed_data.empty())
+			{
+				PCL_ERROR("[pcl::io::LZFBayer8ImageReaderExt::read] Error uncompressing data stored in %s!\n", filename.c_str());
+				return boost::shared_ptr<CvMatExt>();
+			}
+
+			boost::filesystem::path path(filename);
+			boost::posix_time::ptime t = boost::posix_time::from_iso_string(path.filename().string().substr(6, 22));//image timestamp
+			boost::posix_time::time_duration td(t - epoch);//time since epoch
+
+			unsigned char *ir_data = reinterpret_cast<unsigned char*> (&uncompressed_data[0]);
+
+			buffer.assign(ir_data, ir_data + getWidth() * getHeight());
+
+			return boost::make_shared<CvMatExt>(cv::Mat(getHeight(), getWidth(), CV_8UC1, (void*)&buffer[0], getWidth()), td.total_microseconds());
+		}
+	};
 }

@@ -27,6 +27,9 @@ namespace pcl
 #ifdef HAVE_OPENCV
 	class CvMatExt {
 	public:
+		CvMatExt() {
+		}
+		
 		CvMatExt(const cv::Mat& image, long long timestamp, double focal_length = 0.0) {
 			this->image = image;
 			this->timestamp = timestamp;
