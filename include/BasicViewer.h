@@ -33,9 +33,6 @@ namespace PCLGrabber {
 		boost::shared_ptr<DepthT> depth_image_;
 		boost::shared_ptr<ImageT> color_image_;
 		boost::shared_ptr<const PointCloud<PointT> > cloud_;
-		//FIXME
-		boost::shared_ptr<CvMatExt> rgb_image_;
-		boost::shared_ptr<CvMatExt> ir_image_;
 
 	public:
 		BasicViewer() : visualizer(0), depth_viewer(0), color_viewer(0) {
@@ -53,14 +50,6 @@ namespace PCLGrabber {
 			boost::mutex::scoped_lock lock(image_mutex);
 			depth_image_ = depth_image;
 			color_image_ = color_image;
-			FPS_CALC("IMG_VIS");
-		}
-
-		void image_callback_2(const boost::shared_ptr<CvMatExt>& rgb_image, const boost::shared_ptr<CvMatExt>& ir_image)
-		{
-			boost::mutex::scoped_lock lock(image_mutex);
-			rgb_image_ = rgb_image;
-			ir_image_ = ir_image;
 			FPS_CALC("IMG_VIS");
 		}
 
@@ -90,11 +79,6 @@ namespace PCLGrabber {
 						boost::bind(&BasicViewer::image_callback, this, _1, _2);
 					grabber->registerCallback(f_image);
 				}
-				if (grabber->providesCallback<void(const boost::shared_ptr<CvMatExt>&, const boost::shared_ptr<CvMatExt>&)>()) {
-					boost::function<void(const boost::shared_ptr<CvMatExt>&, const boost::shared_ptr<CvMatExt>&)> f_image =
-						boost::bind(&BasicViewer::image_callback_2, this, _1, _2);
-					grabber->registerCallback(f_image);
-				}
 				else {
 					return;
 				}
@@ -111,9 +95,6 @@ namespace PCLGrabber {
 			boost::shared_ptr<ImageT> color_image;
 			boost::shared_ptr<DepthT> depth_image;
 			boost::shared_ptr<const PointCloud<PointT> > cloud;
-			//FIXME
-			boost::shared_ptr<CvMatExt> rgb_image;
-			boost::shared_ptr<CvMatExt> ir_image;
 
 			if (!((visualizer && visualizer->wasStopped()) || (depth_viewer && depth_viewer->wasStopped()) || (color_viewer && color_viewer->wasStopped())))
 			{
@@ -139,20 +120,14 @@ namespace PCLGrabber {
 					if (image_mutex.try_lock()) {
 						depth_image_.swap(depth_image);
 						color_image_.swap(color_image);
-						rgb_image_.swap(rgb_image);
-						ir_image_.swap(ir_image);
 						image_mutex.unlock();
 					}
 
 					if (depth_image)
 						depth_viewer->showShortImage(GetDepthBuffer(depth_image), GetWidth(depth_image), GetHeight(depth_image));
-					else if (ir_image)
-						depth_viewer->showMonoImage(ir_image->image.data, ir_image->image.cols, ir_image->image.rows);
 
 					if (color_image)
 						color_viewer->showRGBImage(GetRGBBuffer(color_image), GetWidth(color_image), GetHeight(color_image));
-					else if (rgb_image)
-						color_viewer->showRGBImage(rgb_image->image.data, rgb_image->image.cols, rgb_image->image.rows);
 
 					depth_viewer->spinOnce();
 					color_viewer->spinOnce();

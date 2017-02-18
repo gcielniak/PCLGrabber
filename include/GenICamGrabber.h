@@ -31,7 +31,7 @@ namespace PCLGrabber {
 			ReleaseObject(hCamera);
 		}
 
-		cv::Mat image, image_2;
+		cv::Mat image, image_mono16;
 
 		void Init() {
 			if (!initialised) {
@@ -56,7 +56,7 @@ namespace PCLGrabber {
 			else
 				type = CV_8U;
 			image = cv::Mat(cv::Size(ImageWidth(hCamera), ImageHeight(hCamera)), type);
-			image_2 = cv::Mat(cv::Size(ImageWidth(hCamera), ImageHeight(hCamera)), type);
+			image_mono16 = cv::Mat(cv::Size(ImageWidth(hCamera), ImageHeight(hCamera)), CV_16UC1);
 		}
 
 		int GetNrDevices() {
@@ -129,8 +129,12 @@ namespace PCLGrabber {
 				GetLinearAccess(hCamera, 0, &ppixels, &xInc, &yInc);
 				image.data = (uchar*)ppixels;
 				if (type == CV_8UC3) {
-					cv::cvtColor(image, image_2, CV_BGR2RGB);
-					image = image_2;
+					cv::cvtColor(image, image, CV_BGR2RGB);
+				}
+				else {
+					image.convertTo(image_mono16, CV_16UC1);
+					image_mono16 *= 256;
+					return image_mono16;
 				}
 			}
 			return image;
@@ -144,20 +148,20 @@ namespace PCLGrabber {
 		bool quit, running;
 		GenICamera camera_1, camera_2;
 		CvMatExt image_1, image_2;
-		typedef void (Signal_ImageImage)(const boost::shared_ptr<CvMatExt>&, const boost::shared_ptr<CvMatExt>&);
+		typedef void (Signal_ImageDepth)(const boost::shared_ptr<CvMatExt>&, const boost::shared_ptr<CvMatExt>&, float focal_length);
 
-		boost::signals2::signal<Signal_ImageImage>* signal_ImageImage;
+		boost::signals2::signal<Signal_ImageDepth>* signal_ImageDepth;
 
 		virtual void threadFunction() {
 			camera_1.Start();
 			camera_2.Start();
 			while (!quit) {
-				if (signal_ImageImage->num_slots()) {
+				if (signal_ImageDepth->num_slots()) {
 					image_1.image = camera_1.Capture();
 					image_2.image = camera_2.Capture();
 					image_1.timestamp = camera_1.GetTimeStamp();
 					image_2.timestamp = camera_2.GetTimeStamp();
-					signal_ImageImage->operator()(boost::make_shared<CvMatExt>(image_1), boost::make_shared<CvMatExt>(image_2));
+					signal_ImageDepth->operator()(boost::make_shared<CvMatExt>(image_1), boost::make_shared<CvMatExt>(image_2), 0.0);
 				}
 			}
 		}
@@ -168,12 +172,12 @@ namespace PCLGrabber {
 			camera_1.Init();
 			camera_2.Init();
 			camera_2.SetCamera(1);
-			signal_ImageImage = createSignal<Signal_ImageImage>();
+			signal_ImageDepth = createSignal<Signal_ImageDepth>();
 		}
 
 		~GenICamGrabberBase() throw() {
 			stop();
-			disconnect_all_slots<Signal_ImageImage>();
+			disconnect_all_slots<Signal_ImageDepth>();
 		}
 
 		void start() {

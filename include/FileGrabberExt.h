@@ -87,7 +87,6 @@ namespace PCLGrabber
 		//extra signals for Kinect2
 		typedef void (Signal_ImageDepthImage)(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthT>&, const boost::shared_ptr<ImageT>&);
 		typedef void (Signal_ImageDepthImageDepth)(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthT>&, const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthT>&);
-		typedef void (Signal_ImageIR)(const boost::shared_ptr<CvMatExt>&, const boost::shared_ptr<CvMatExt>&);
 
 	protected:
 		bool pclzf_mode;
@@ -96,7 +95,6 @@ namespace PCLGrabber
 	protected:
 		boost::signals2::signal<Signal_ImageDepthImage>* signal_ImageDepthImage;
 		boost::signals2::signal<Signal_ImageDepthImageDepth>* signal_ImageDepthImageDepth;
-		boost::signals2::signal<Signal_ImageIR>* signal_ImageIR;
 
 	public:
 		ImageGrabberExt(const std::string& dir_, float frames_per_second = 0, bool repeat = false) :
@@ -111,7 +109,6 @@ namespace PCLGrabber
 				signal_ImageDepthImage = Grabber::createSignal<Signal_ImageDepthImage>();
 
 			signal_ImageDepthImageDepth = Grabber::createSignal<Signal_ImageDepthImageDepth>();
-			signal_ImageIR = Grabber::createSignal<Signal_ImageIR>();
 		}
 
 		virtual ~ImageGrabberExt() throw()
@@ -122,7 +119,6 @@ namespace PCLGrabber
 
 			Grabber::disconnect_all_slots<Signal_ImageDepthImage>();
 			Grabber::disconnect_all_slots<Signal_ImageDepthImageDepth>();
-			Grabber::disconnect_all_slots<Signal_ImageIR>();
 		}
 
 		boost::shared_ptr<ImageT> ToRGB24Image(const string& file_name, vector<unsigned char>& color_buffer, const string& postfix = "rgb") const
@@ -180,17 +176,6 @@ namespace PCLGrabber
 			}
 		}
 
-		boost::shared_ptr<CvMatExt> ToIRImage(const string& file_name, vector<unsigned char>& ir_buffer) const {
-			string ir_file_name = file_name;
-			if (pclzf_mode)
-				ir_file_name += ".pclzf";
-			else
-				ir_file_name += ".png";
-
-			pcl::LZFBayer8ImageReaderExt ir_reader;
-			return ir_reader.read(ir_file_name, ir_buffer);
-		}
-
 	protected:
 		/**
 		* Implements a new publish() method that generates also standard images and extra for Kinect2
@@ -201,12 +186,11 @@ namespace PCLGrabber
 
 			static int file_index = 0;
 
-			static vector<unsigned char> image_buffer, image_orig_buffer, ir_buffer;
+			static vector<unsigned char> image_buffer, image_orig_buffer;
 			static vector<unsigned short> depth_buffer, depth_reg_buffer;
 
 			boost::shared_ptr<DepthT> depth, depth_reg;
 			boost::shared_ptr<ImageT> image, image_orig;
-			boost::shared_ptr<CvMatExt> rgb, ir;
 
 			boost::filesystem::path file_path(dir);
             file_path /= this->getDepthFileNameAtIndex(file_index);
@@ -240,10 +224,6 @@ namespace PCLGrabber
 
 			if (signal_ImageDepthImageDepth->num_slots())
 				signal_ImageDepthImageDepth->operator()(image, depth, image_orig, depth_reg);
-
-			if (image && signal_ImageIR->num_slots()) {
-				signal_ImageIR->operator()(image, ToIRImage(file_name, ir_buffer));
-			}
 
 			cerr << file_name << endl;
 

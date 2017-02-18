@@ -174,68 +174,6 @@ namespace PCLGrabber
 			FPS_CALC("WRITE IMAGE");
 		}
 
-		void WriteImage2(const boost::shared_ptr<CvMatExt>& color_image, const boost::shared_ptr<CvMatExt>& ir_image) {
-			io::LZFBayer8ImageWriter ir_writer;
-			io::LZFRGB24ImageWriter color_writer;
-
-			//cloud timestamp: can be simulated from filename or timestamp from the sensor
-			boost::posix_time::ptime ir_timestamp = from_us(GetTimeStamp(ir_image));
-
-			//if timestamp from sensor then calculate offset from the current time
-			if (!simulated_time) {
-				if (sensor_timestamp_first.is_not_a_date_time()) {//first frame
-					sensor_time_start = boost::posix_time::microsec_clock::local_time();
-					sensor_timestamp_first = ir_timestamp;
-				}
-				//correct
-				ir_timestamp += sensor_time_start - sensor_timestamp_first;
-			}
-
-			string time_string = boost::posix_time::to_iso_string(ir_timestamp);
-
-			if (!boost::filesystem::exists(boost::filesystem::path(output_data_path)))
-				boost::filesystem::create_directories(boost::filesystem::path(output_data_path));
-
-			std::stringstream ir_file_name;
-			std::stringstream color_file_name;
-			std::stringstream xml_file_name;
-
-			if (format == 0)
-			{
-				ir_file_name << "frame_" << time_string << "_depth.pclzf";
-				color_file_name << "frame_" << time_string << "_rgb.pclzf";
-			}
-			else
-			{
-				ir_file_name << "frame_" << time_string << "_depth.png";
-				color_file_name << "frame_" << time_string << "_rgb.png";
-			}
-
-			xml_file_name << "frame_" << time_string << ".xml";
-
-			cout << "Writing out the frame \"" << output_data_path << "frame_" << time_string << "\"" << endl;
-			if (ir_image)
-			{
-				cout << "Writing the ir image to " << output_data_path + ir_file_name.str() << endl;
-				if (format == 0)
-					ir_writer.write((const char*)ir_image->image.data, GetWidth(ir_image), GetHeight(ir_image), output_data_path + ir_file_name.str());
-				else
-					cv::imwrite(output_data_path + ir_file_name.str(), cv::Mat(GetHeight(ir_image), GetWidth(ir_image), CV_8UC1, (void*)ir_image->image.data, GetWidth(ir_image)));
-				std::ofstream stream(output_data_path + xml_file_name.str());
-			}
-
-			if (color_image)
-			{
-				cout << "Writing the color image to " << output_data_path + color_file_name.str() << endl;
-				if (format == 0)
-					color_writer.write((const char*)GetRGBBuffer(color_image), GetWidth(color_image), GetHeight(color_image), output_data_path + color_file_name.str());
-				else
-					cv::imwrite(output_data_path + color_file_name.str(), cv::Mat(GetHeight(color_image), GetWidth(color_image), CV_8UC3, (void*)GetRGBBuffer(color_image), GetWidth(color_image) * 3));
-			}
-
-			FPS_CALC("WRITE IMAGE 2");
-		}
-
 		virtual void RegisterCallbacks(Grabber* grabber)
 		{
 			if ((format == 0) || (format == 2))
@@ -252,11 +190,6 @@ namespace PCLGrabber
 						boost::bind(&FileOutput::WriteImage, this, _1, _2, boost::shared_ptr<ImageT>());
 					grabber->registerCallback(f_write);
 				}
-				else if (grabber->providesCallback<void(const boost::shared_ptr<CvMatExt>&, const boost::shared_ptr<CvMatExt>&)>()) {
-					boost::function<void(const boost::shared_ptr<CvMatExt>&, const boost::shared_ptr<CvMatExt>&)> f_image =
-						boost::bind(&FileOutput::WriteImage2, this, _1, _2);
-					grabber->registerCallback(f_image);
-				}
 			}
 			else if (format == 1)
 			{
@@ -271,11 +204,6 @@ namespace PCLGrabber
 				{
 					boost::function<void(const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthImageT>&, const boost::shared_ptr<ImageT>&, const boost::shared_ptr<DepthImageT>&)> f_image =
 						boost::bind(&FileOutput::WriteImage, this, _3, _4, boost::shared_ptr<ImageT>());
-					grabber->registerCallback(f_image);
-				}
-				else if (grabber->providesCallback<void(const boost::shared_ptr<CvMatExt>&, const boost::shared_ptr<CvMatExt>&)>()) {
-					boost::function<void(const boost::shared_ptr<CvMatExt>&, const boost::shared_ptr<CvMatExt>&)> f_image =
-						boost::bind(&FileOutput::WriteImage2, this, _1, _2);
 					grabber->registerCallback(f_image);
 				}
 			}
