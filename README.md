@@ -1,5 +1,11 @@
 # PCLGrabber
 
+## Sensor Support
+ - ZED Camera (requires [ZED SDK](https://www.stereolabs.com/developers/))
+ - Intel RealSense (requires [Intel RealSense SDK](https://software.intel.com/en-us/intel-realsense-sdk))
+ - Genie Nanos (requires [Common Vision Blox](http://www.commonvisionblox.com/en/trialversions/))
+ - Kinect 2 (requires [Kinect 2 SDK](https://www.microsoft.com/en-gb/download/details.aspx?id=44561))
+ 
 ## Prerequisites
 - cmake
 - PCL (1.7>=)
