@@ -14,14 +14,47 @@ namespace PCLGrabber {
 	class BasicViewerBase {
 	protected:
 		bool vis_cloud, vis_images;
+		double scale;
 
 	public:
+		void keyboardEvent(const pcl::visualization::KeyboardEvent &event, void* viewer_void) {
+			pcl::visualization::PCLVisualizer *viewer = static_cast<pcl::visualization::PCLVisualizer *> (viewer_void);
+			if (event.getKeySym() == "+" && event.keyDown()) {
+				std::cout << "+ was pressed => scale up" << std::endl;
+				scale *= 2;
+			}
+			else if (event.getKeySym() == "-" && event.keyDown()) {
+				std::cout << "- was pressed => scale down" << std::endl;
+				scale /= 2;
+			}
+		}
+
+		void Scale(double scale) {
+			this->scale = scale;
+		}
+
 		virtual void RegisterCallbacks(Grabber* grabber) = 0;
 		virtual bool SpinOnce() = 0;
 
 		void VisualiseCloudPoint(bool value) { vis_cloud = value; }
 		void VisualiseImages(bool value) { vis_images = value; }
 	};
+
+	static void keyboardEvent2(const pcl::visualization::KeyboardEvent &event, void* viewer_void) {
+		static double scale = 1.0;
+		BasicViewerBase* viewer = (BasicViewerBase*)viewer_void;
+
+		if (event.getKeySym() == "i" && event.keyDown()) {
+			std::cout << "+ was pressed => scale up" << std::endl;
+			scale *= 1.5;
+			viewer->Scale(scale);
+		}
+		else if (event.getKeySym() == "j" && event.keyDown()) {
+			std::cout << "- was pressed => scale down" << std::endl;
+			scale /= 1.5;
+			viewer->Scale(scale);
+		}
+	}
 
 	template <typename PointT, typename ImageT, typename DepthT>
 	class BasicViewer : public BasicViewerBase
@@ -36,6 +69,7 @@ namespace PCLGrabber {
 
 	public:
 		BasicViewer() : visualizer(0), depth_viewer(0), color_viewer(0) {
+			this->scale = 0.25;
 		}
 
 		void cloud_cb_(const boost::shared_ptr<const PointCloud<PointT> >& cloud)
@@ -87,6 +121,8 @@ namespace PCLGrabber {
 				depth_viewer = new visualization::ImageViewer();
 				color_viewer->setWindowTitle("PCLGrabber: color image");//the constructor does not seem to initialise the name correctly in all circumstances
 				depth_viewer->setWindowTitle("PCLGrabber: depth image");
+				depth_viewer->registerKeyboardCallback(&keyboardEvent2, (void*)this);
+				color_viewer->registerKeyboardCallback(&keyboardEvent2, (void*)this);
 			}
 		}
 
@@ -123,11 +159,27 @@ namespace PCLGrabber {
 						image_mutex.unlock();
 					}
 
-					if (depth_image)
-						depth_viewer->showShortImage(GetDepthBuffer(depth_image), GetWidth(depth_image), GetHeight(depth_image));
+					if (depth_image) {
+						if (scale != 1.0) {
+							cv::Mat orig(cv::Size(GetWidth(depth_image), GetHeight(depth_image)), CV_16UC1, GetDepthBuffer(depth_image));
+							cv::Mat scaled;
+							cv::resize(orig, scaled, cv::Size(GetWidth(depth_image)*scale, GetHeight(depth_image)*scale));
+							depth_viewer->showShortImage((unsigned short*)scaled.data, scaled.cols, scaled.rows);
+						}
+						else
+							depth_viewer->showShortImage((unsigned short*)GetDepthBuffer(depth_image), GetWidth(depth_image), GetHeight(depth_image));
+					}
 
-					if (color_image)
-						color_viewer->showRGBImage(GetRGBBuffer(color_image), GetWidth(color_image), GetHeight(color_image));
+					if (color_image) {
+						if (scale != 1.0) {
+							cv::Mat orig(cv::Size(GetWidth(color_image), GetHeight(color_image)), CV_8UC3, GetRGBBuffer(color_image));
+							cv::Mat scaled;
+							cv::resize(orig, scaled, cv::Size(GetWidth(color_image)*scale, GetHeight(color_image)*scale));
+							color_viewer->showRGBImage(scaled.data, scaled.cols, scaled.rows);
+						}
+						else
+							color_viewer->showRGBImage(GetRGBBuffer(color_image), GetWidth(color_image), GetHeight(color_image));
+					}
 
 					depth_viewer->spinOnce();
 					color_viewer->spinOnce();

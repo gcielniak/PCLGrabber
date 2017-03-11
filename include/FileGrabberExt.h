@@ -210,7 +210,7 @@ namespace PCLGrabber
 			if (signal_ImageDepthImageDepth->num_slots())
 				depth_reg = ToDepthImage(file_name, depth_reg_buffer, true);
 
-			if (depth && this->signal_Depth->num_slots())
+			if (depth && this->signal_Depth && this->signal_Depth->num_slots())
 				this->signal_Depth->operator()(depth);
 
 			if (image && this->signal_Image->num_slots())

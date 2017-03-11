@@ -110,6 +110,7 @@ set (SOURCES
 	include/ImageUtils.h
 	include/Kinect2NativeGrabber.h
 	include/ZEDGrabber.h
+	include/GenICamDevice.h
 	include/GenICamGrabber.h
 	src/PCLGrabber.cpp)
 
