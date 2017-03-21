@@ -153,9 +153,6 @@ namespace PCLGrabber {
 			IKinectSensor* sensor;
 			GetDefaultKinectSensor(&sensor);
 			if (sensor) {
-				BOOLEAN available;
-				sensor->get_IsAvailable(&available);
-				if (available)
 					supported_platforms.push_back(KINECT2_NATIVE_PLATFORM);
 				sensor->Release();
 			}
@@ -166,9 +163,12 @@ namespace PCLGrabber {
 #endif
 #ifdef HAVE_GENICAM
 			GenICamera camera;
-			camera.Init();
-			if (camera.GetNrDevices() == 2)
-				supported_platforms.push_back(GENICAM_PLATFORM);
+			try {
+				camera.Init();
+				if (camera.GetNrDevices() == 2)
+					supported_platforms.push_back(GENICAM_PLATFORM);
+			}
+			catch (std::exception) {}			
 #endif
 		}
 
@@ -373,7 +373,7 @@ namespace PCLGrabber {
 				throw pcl::PCLException("DeviceInput::GetGrabber, deviced already initalised.");
 
 			if (platform >= supported_platforms.size())
-				throw pcl::PCLException("DeviceInput::GetGrabber, wrong platform number.");
+				return 0;
 
 #ifdef HAVE_OPENNI2
 			if (!grabber && (supported_platforms[platform] == OPENNI2_PLATFORM))
