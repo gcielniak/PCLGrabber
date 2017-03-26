@@ -23,6 +23,7 @@ namespace PCLGrabber {
 		IMG hCamera = NULL;
 		NODEMAP node_map = NULL;
 		int type;
+		cv::Mat image, image_mono16;
 
 	public:
 		GenICamera() {
@@ -32,8 +33,6 @@ namespace PCLGrabber {
 			ReleaseObject(node_map);
 			ReleaseObject(hCamera);
 		}
-
-		cv::Mat image, image_mono16;
 
 		void Init() {
 			if (!initialised) {
