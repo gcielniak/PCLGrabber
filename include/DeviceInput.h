@@ -153,6 +153,12 @@ namespace PCLGrabber {
 			IKinectSensor* sensor;
 			GetDefaultKinectSensor(&sensor);
 			if (sensor) {
+				sensor->Open();
+				//has to wait at least 300ms to veryfy if it is available.
+				boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+				BOOLEAN is_available;
+				sensor->get_IsAvailable(&is_available);
+				if (is_available == 1)
 					supported_platforms.push_back(KINECT2_NATIVE_PLATFORM);
 				sensor->Release();
 			}
