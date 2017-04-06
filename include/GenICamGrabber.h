@@ -43,7 +43,7 @@ namespace PCLGrabber {
 			camera_1.Init();
 			camera_2.Init();
 			camera_2.SetCamera(1);
-			camera_1.TriggerMode(false);
+			camera_1.TriggerMode(true);
 			camera_2.TriggerMode(true);
 			cerr << "Cam1 Trigger Mode: " << camera_1.TriggerMode() << endl;
 			cerr << "Cam2 Trigger Mode: " << camera_2.TriggerMode() << endl;
