@@ -3,6 +3,8 @@
 #pragma warning( disable : 4996)
 #endif
 
+#include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/thread/thread.hpp> 
 #include "ImageUtils.h"
 #include "BasicViewer.h"
 #include "FileOutput.h"
@@ -142,8 +144,10 @@ int main(int argc, char **argv) {
 
 	grabber->start();
 
-	while (viewer->SpinOnce())
+	while (viewer->SpinOnce() && !((ImageGrabberBase*)grabber)->atLastFrame())
 		;
+
+	boost::this_thread::sleep(boost::posix_time::milliseconds(5000));
 
 	grabber->stop();
 

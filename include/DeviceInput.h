@@ -442,8 +442,25 @@ namespace PCLGrabber {
 #endif
 
 #ifdef HAVE_GENICAM
-			if (!grabber && (supported_platforms[platform] == GENICAM_PLATFORM))
-				grabber = new GenICamGrabberBase();
+			if (!grabber && (supported_platforms[platform] == GENICAM_PLATFORM)) {
+				int genicam_type = 0;
+
+				{
+					GenICamera camera;
+					camera.Init();
+					if ((camera.GetDeviceName(0) == "AD-130GE_#0") && (camera.GetDeviceName(1) == "AD-130GE_#1"))
+						genicam_type = 2;
+					else if ((camera.GetDeviceName(0) == "Teledalsa") && (camera.GetDeviceName(1) == "Teledalsa"))
+						genicam_type = 1;
+				}
+
+				if (genicam_type == 2) 
+					grabber = new JAI130GE();
+				else if (genicam_type == 1)
+					grabber = new GenieNano();
+				else
+					grabber = new GenICamGrabberBase();
+			}
 #endif
 			if (!grabber)
 				throw pcl::PCLException("DeviceInput::GetGrabber, could not initalise the specified device.");

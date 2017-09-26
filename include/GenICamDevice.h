@@ -169,9 +169,7 @@ namespace PCLGrabber {
 
 			if (index < GetNrDevices()) {
 				SetCamera(index);
-				device_name << GetNodeValue("DeviceFamilyName");
-				device_name << " " << GetNodeValue("DeviceModelName");
-				device_name << " by " << GetNodeValue("DeviceVendorName");
+				device_name << GetNodeValue("DeviceModelName");
 				SetCamera(current_index);
 			}
 
