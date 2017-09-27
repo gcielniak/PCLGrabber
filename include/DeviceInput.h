@@ -450,7 +450,7 @@ namespace PCLGrabber {
 					camera.Init();
 					if ((camera.GetDeviceName(0) == "AD-130GE_#0") && (camera.GetDeviceName(1) == "AD-130GE_#1"))
 						genicam_type = 2;
-					else if ((camera.GetDeviceName(0) == "Teledalsa") && (camera.GetDeviceName(1) == "Teledalsa"))
+					else if ((camera.GetDeviceName(0) == "Nano-C2420") && (camera.GetDeviceName(1) == "Nano-M2420"))
 						genicam_type = 1;
 				}
 
