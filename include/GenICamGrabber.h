@@ -106,12 +106,10 @@ namespace PCLGrabber {
 		GenieNano() {
 			camera_1.TriggerMode(true);
 			camera_2.TriggerMode(true);
-//			cerr << "Cam1 Trigger Mode: " << camera_1.TriggerMode() << endl;
-//			cerr << "Cam2 Trigger Mode: " << camera_2.TriggerMode() << endl;
 			camera_1.SetNodeValue("LineSelector", 2);
 			camera_1.SetNodeValue("outputLineSource", 5);
-//			cerr << "Cam1 Line Selector: " << camera_1.GetNodeValue("LineSelector") << endl;
-//			cerr << "Cam1 Line Source: " << camera_1.GetNodeValue("outputLineSource") << endl;
+			camera_1.AutoBrightness(true);
+			camera_2.AutoBrightness(true);
 			software_trigger = true;
 		}
 	};
